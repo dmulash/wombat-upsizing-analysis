@@ -1,0 +1,72 @@
+# Site + Plant Parameters
+site:
+  depth: 28.7161538461538
+  distance: 104
+  distance_to_landfall: 57
+  mean_windspeed: 9.03
+plant:
+  layout: grid
+  num_turbines: 189
+  row_spacing: 5.987068966
+  substation_distance: 1
+  turbine_spacing: 7.423965517
+
+landfall:
+  interconnection_distance: 8
+  trench_length: 2
+turbine: 14MW
+oss_design:
+  num_substations: 3
+# Vessels
+array_cable_install_vessel: example_cable_lay_vessel
+export_cable_install_vessel: example_cable_lay_vessel
+export_cable_bury_vessel: example_cable_lay_vessel
+oss_install_vessel: example_heavy_lift_vessel
+spi_vessel: example_scour_protection_vessel
+wtiv: example_wtiv
+# Module Specific
+OffshoreSubstationInstallation:
+  feeder: example_heavy_feeder
+  num_feeders: 1
+array_system_design:
+  cables:
+  - XLPE_630mm_66kV
+  - XLPE_185mm_66kV
+  # 66, Up to 170. We stick to 66 kV
+export_system_design:
+  cables: XLPE_1000m_220kV
+  percent_added_length: 0.0
+scour_protection_design:
+  cost_per_tonne: 40
+  scour_protection_depth: 1
+# Configured Phases
+design_phases:
+- MonopileDesign
+- ScourProtectionDesign
+- ArraySystemDesign
+- ExportSystemDesign
+- OffshoreSubstationDesign
+install_phases:
+  ArrayCableInstallation: 0
+  ExportCableInstallation: 2000
+  MonopileInstallation: !!python/tuple
+  - ScourProtectionInstallation
+  - 0.5
+  OffshoreSubstationInstallation: 0
+  ScourProtectionInstallation: 0
+  TurbineInstallation: !!python/tuple
+  - MonopileInstallation
+  - 0.1
+  
+#install_phases:
+  #ArrayCableInstallation: 0
+  #ExportCableInstallation: 0
+  #MooredSubInstallation: 0
+  #MooringSystemInstallation: 0
+  #OffshoreSubstationInstallation: 0
+  #TurbineInstallation: 0
+# Project Inputs
+project_parameters:
+  turbine_capex: 1500
+  commissioning: 0.01
+  decommissioning: 0.15
