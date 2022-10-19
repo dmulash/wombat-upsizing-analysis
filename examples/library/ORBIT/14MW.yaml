@@ -1,0 +1,20 @@
+blade:
+  deck_space: 452      # m^2 
+  length: 116          # m
+  type: Blade
+  mass: 63             # t 72 * 14 / 15
+hub_height: 141       # m
+nacelle:
+  deck_space: 226      # m^2
+  type: Nacelle
+  mass: 727           # t
+name: 14MW SG Turbine
+rated_windspeed: 11    # m/s
+rotor_diameter: 222    # m
+tower:
+  deck_space: 68     # m^2
+  sections: 2          # n
+  type: Tower
+  length: 141
+  mass: 456            # t
+turbine_rating: 15     # MW
