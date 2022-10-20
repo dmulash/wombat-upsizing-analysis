@@ -1,1 +1,6 @@
-__version__ = "0"
+"""WHaLE initialization"""
+
+__version__ = "0.1"
+
+
+from whale.project import Project

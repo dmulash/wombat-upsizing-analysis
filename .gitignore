@@ -127,3 +127,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# MacOS Files
+*.DS_Store
+
+# Project specific
+examples/library/WOMBAT/outputs/logs/
