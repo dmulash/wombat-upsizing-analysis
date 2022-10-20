@@ -5,7 +5,7 @@ import attrs
 import pandas as pd
 from attrs import define, field
 
-from ORBIT import ProjectManager
+from ORBIT import ProjectManager, load_config
 from wombat.core import Simulation
 from floris.tools import FlorisInterface
 from wombat.core.library import load_yaml
@@ -32,7 +32,18 @@ def resolve_path(value: str | Path) -> Path:
     raise TypeError(f"The input path: {value}, must be of type `str` or `pathlib.Path`.")
 
 
-def read_config(value: str | Path | dict | ProjectManager | Simulation | FlorisInterface) -> dict | ProjectManager | Simulation | FlorisInterface:
+def read_config(value: str | Path | dict) -> dict:
+    """Reads the configuration file from a YAML to a dictionary.
+
+    Args:
+        value (str | Path | dict): The path to, or a dictionary of the configuration.
+
+    Raises:
+        TypeError: Raised if not a valid file name or already a dictionary.
+
+    Returns:
+        dict: The configuration dictionary.
+    """
     if isinstance(value, (str, Path)):
         value = load_yaml(resolve_path(value))
     if isinstance(value, dict):
@@ -61,11 +72,12 @@ class Project(FromDictMixin):
     """
     library_path: str | Path = field(converter=resolve_path)
     weather: str | Path = field(converter=resolve_path)
-    orbit_config: str | Path | dict = field(converter=read_config)
-    wombat_config: str | Path | dict = field(converter=read_config)
-    floris_config: str | Path | dict = field(converter=read_config)
+    orbit_config: str | Path | dict
+    wombat_config: str | Path | dict
+    floris_config: str | Path | dict
 
     # Internally created attributes, aka, no user inputs to these
+    orbit_config_dict: dict = field(factory=dict, init=False)
     wombat: Simulation = field(init=False)
     orbit: ProjectManager = field(init=False)
     floris: FlorisInterface = field(init=False)
@@ -94,17 +106,20 @@ class Project(FromDictMixin):
 
     def setup_orbit(self) -> None:
         """Creates the ORBIT Project Manager object and readies it for running an analysis."""
-        self.orbit = ProjectManager(self.orbit_config, library_path=self.library_path, weather=pd.read_csv(self.weather))
+        self.orbit_config = self.library_path / "ORBIT" / "project" / "config" / self.orbit_config
+        self.orbit_config_dict = load_config(self.orbit_config)
+        self.orbit = ProjectManager(self.orbit_config_dict, library_path=str(self.library_path / "ORBIT"), weather=pd.read_csv(self.weather))
 
     def setup_wombat(self) -> None:
         """Creates the WOMBAT Simulation object and readies it for running an analysis."""
-        self.wombat = Simulation(library_path=self.library_path, config=self.wombat_config)
+        self.wombat_config = self.library_path / "WOMBAT" / "config" / self.wombat_config
+        self.wombat = Simulation.from_config(self.wombat_config)
 
     def setup_floris(self) -> None:
         """Creates the FLORIS FlorisInterface object and readies it for running an analysis."""
+        self.floris_config = self.library_path / "FLORIS" / self.floris_config
         self.floris = FlorisInterface(configuration=self.floris_config)
 
-    def run(self) -> None:
+    def run_capex_opex(self) -> None:
         self.orbit.run()
         self.wombat.run()
-        self.floris.calculate_wake()
