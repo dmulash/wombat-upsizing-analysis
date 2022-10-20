@@ -132,4 +132,4 @@ dmypy.json
 *.DS_Store
 
 # Project specific
-examples/library/WOMBAT/output/logs/*
+examples/library/WOMBAT/outputs/logs/
