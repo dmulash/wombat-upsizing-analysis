@@ -1,7 +1,7 @@
 capacity_kw: 15000
 capex_kw: 1500  # need an updated value
 power_curve:
-  file: 12MW_215_RWT.csv
+  file: NREL_11MW_206_RWT.csv
 turbine:
   name: turbine
   maintenance:
