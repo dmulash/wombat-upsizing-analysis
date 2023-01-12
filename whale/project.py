@@ -106,18 +106,18 @@ class Project(FromDictMixin):
 
     def setup_orbit(self) -> None:
         """Creates the ORBIT Project Manager object and readies it for running an analysis."""
-        self.orbit_config = self.library_path / "ORBIT" / "project" / "config" / self.orbit_config
+        self.orbit_config = self.library_path / "project/config" / self.orbit_config
         self.orbit_config_dict = load_config(self.orbit_config)
-        self.orbit = ProjectManager(self.orbit_config_dict, library_path=str(self.library_path / "ORBIT"), weather=pd.read_csv(self.weather))
+        self.orbit = ProjectManager(self.orbit_config_dict, library_path=str(self.library_path), weather=pd.read_csv(self.weather))
 
     def setup_wombat(self) -> None:
         """Creates the WOMBAT Simulation object and readies it for running an analysis."""
-        self.wombat_config = self.library_path / "WOMBAT" / "config" / self.wombat_config
+        self.wombat_config = self.library_path / "project/config" / self.wombat_config
         self.wombat = Simulation.from_config(self.wombat_config)
 
     def setup_floris(self) -> None:
         """Creates the FLORIS FlorisInterface object and readies it for running an analysis."""
-        self.floris_config = self.library_path / "FLORIS" / self.floris_config
+        self.floris_config = self.library_path / "project/config" / self.floris_config
         self.floris = FlorisInterface(configuration=self.floris_config)
 
     def run_capex_opex(self) -> None:

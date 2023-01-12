@@ -29,7 +29,7 @@ DESCRIPTION = "Windfarm Heuristics and Lifecycle Estimator"
 
 
 # Installation reuqirements
-REQUIRED = ["orbit-nrel", "wombat", "floris", "attrs", "matplotlib>=3.6", "pyyaml"]
+REQUIRED = ["orbit-nrel>=1.0.7", "wombat>=0.6", "floris>=3.2", "attrs", "matplotlib>=3.6", "pyyaml"]
 TEST = ["pytest", "pytest-xdist", "pytest-cov"]
 DEV = ["pre-commit", "black", "mypy", "flake8", "flake8-docstrings", "isort", "pylint"] + TEST
 DOCS = ["Sphinx", "pydata-sphinx-theme", "myst-nb", "myst-parser", "sphinx-panels"]
