@@ -1,7 +1,7 @@
-from lib2to3.pytree import convert
 from pathlib import Path
 
 import attrs
+import numpy as np
 import pandas as pd
 from attrs import define, field
 
@@ -98,6 +98,7 @@ class Project(FromDictMixin):
     floris: FlorisInterface = field(init=False)
     floris_wind_rose: WindRose = field(init=False)
     aep: float = field(init=False)
+    floris_turbine_powers: np.ndarray = field(init=False)
 
     def __attrs_post_init__(self) -> None:
         self.setup_orbit()
