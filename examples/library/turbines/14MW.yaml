@@ -17,4 +17,4 @@ tower:
   type: Tower
   length: 141
   mass: 456            # t
-turbine_rating: 15     # MW
+turbine_rating: 14     # MW
