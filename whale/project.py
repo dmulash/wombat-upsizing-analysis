@@ -1,4 +1,7 @@
+import multiprocessing as mp
+from copy import deepcopy
 from pathlib import Path
+from itertools import product
 
 import attrs
 import numpy as np
@@ -71,6 +74,69 @@ def load_weather(value: str | Path | pd.DataFrame) -> pd.DataFrame:
     )
     return df
 
+
+def run_chunked_floris(
+    fi: FlorisInterface,
+    weather: pd.DataFrame,
+    chunk_id: tuple[int, int],
+    reinit_kwargs: dict = {},
+    run_kwargs: dict = {},
+) -> tuple[FlorisInterface, pd.DataFrame]:
+    """Runs ``fi.calculate_wake()`` over a chunk of a larger time series analysis and
+    returns the individual turbine powers for each corresponding time
+
+    Args:
+        fi : FlorisInterface
+            A copy of the base ``FlorisInterface`` object.
+        weather : pd.DataFrame
+            A subset of the full weather profile, with only the datetime index and 
+            columns: "windspeed" and "wind_direction".
+        reinit_kwargs : dict, optional
+            Any additional reinitialization keyword arguments. Defaults to {}.
+        run_kwargs : dict, optional
+            Any additional calculate_wake keyword arguments. Defaults to {}.
+
+    Returns:
+        tuple[tuple[int, int], FlorisInterface, pd.DataFrame]
+            The ``chunk_id``, a reinitialized ``fi`` using the appropriate wind
+            parameters that can be used for further post-processing, and the
+            resulting turbine powers.
+    """
+    reinit_kwargs["wind_directions"] = weather.wind_direction.values
+    reinit_kwargs["wind_speeds"] = weather.windspeed.values
+    fi.reinitialize(time_series=True, **reinit_kwargs)
+    fi.calculate_wake()
+    power_df = pd.DataFrame(fi.get_turbine_powers()[:, 0, :], index=weather.index)
+    return chunk_id, fi, power_df
+
+
+def run_parallel_floris(
+    args_list: list[tuple[FlorisInterface, pd.DataFrame, tuple[int, int], dict, dict]],
+    nodes: int = -1,
+) -> tuple[dict[tuple[int, int], FlorisInterface], pd.DataFrame]:
+    """Runs the time series floris calculations in parallel.
+
+    Args:
+        args_list : list[tuple[FlorisInterface, pd.DataFrame, tuple[int, int], dict, dict]])
+            A list of the chunked by month arguments that get passed to
+            ``run_chunked_floris``.
+        nodes : int, optional
+            The number of nodes to parallelize over. If -1, then it will use the floor
+            of 80% of the available CPUs on the computer. Defaults to -1.
+
+    Returns:
+        tuple[dict[tuple[int, int], FlorisInterface], pd.DataFrame]
+            A dictionary of the ``chunk_id`` and ``FlorisInterface`` object, and the
+            full turbine power dataframe (without renamed columns).
+    """
+    nodes = int(mp.cpu_count() * 0.8) if nodes == -1 else nodes
+    with mp.Pool(nodes) as pool:
+        results = list(pool.starmap(run_chunked_floris, args_list))
+    
+    fi_dict = {chunk_id: fi for chunk_id, fi, _ in results}
+    turbine_power_df = pd.concat([df for *_, df in results]).sort_index()
+    return fi_dict, turbine_power_df
+
 @define
 class Project(FromDictMixin):
     """The unified interface for creating, running, and assessing analyses that combine
@@ -90,6 +156,14 @@ class Project(FromDictMixin):
     orbit_config: str | Path | dict
     wombat_config: str | Path | dict
     floris_config: str | Path | dict
+    orbit_weather_cols: list[str] = field(
+        validator=attrs.validators.deep_iterable(
+            member_validator=attrs.validators.instance_of(str),
+            iterable_validator=attrs.validators.instance_of(list),
+        )
+    )
+    floris_windspeed: str = field(default="windspeed", converter=str)
+    floris_wind_direction: str = field(default="wind_direction",converter=str)
 
     # Internally created attributes, aka, no user inputs to these
     orbit_config_dict: dict = field(factory=dict, init=False)
@@ -98,7 +172,8 @@ class Project(FromDictMixin):
     floris: FlorisInterface = field(init=False)
     floris_wind_rose: WindRose = field(init=False)
     aep: float = field(init=False)
-    floris_turbine_powers: np.ndarray = field(init=False)
+    floris_turbine_powers: pd.DataFrame = field(init=False)
+    _fi_dict: dict[tuple[int, int], FlorisInterface] = field(init=False, factory=dict)
 
     def __attrs_post_init__(self) -> None:
         self.setup_orbit()
@@ -126,7 +201,11 @@ class Project(FromDictMixin):
         """Creates the ORBIT Project Manager object and readies it for running an analysis."""
         self.orbit_config = self.library_path / "project/config" / self.orbit_config
         self.orbit_config_dict = load_config(self.orbit_config)
-        self.orbit = ProjectManager(self.orbit_config_dict, library_path=str(self.library_path), weather=self.weather)
+        self.orbit = ProjectManager(
+            self.orbit_config_dict,
+            library_path=str(self.library_path),
+            weather=self.weather.loc[:, self.orbit_weather_cols],
+        )
 
     def setup_wombat(self) -> None:
         """Creates the WOMBAT Simulation object and readies it for running an analysis."""
@@ -143,26 +222,62 @@ class Project(FromDictMixin):
         """
         self.floris_config = self.library_path / "project/config" / self.floris_config
 
+        start = self.wombat.env.weather.index.min()
+        stop = self.wombat.env.weather.index.max()
+        weather = self.weather.loc[
+            start: stop,
+            [self.floris_wind_direction, self.floris_windspeed]
+        ]
+        wd, ws = weather.values.T
+
         if wind_rose is None:
-            weather = self.wombat.env.weather
             wind_rose = WindRose()
-            wind_rose_df = wind_rose.make_wind_rose_from_user_data(weather.wind_direction, weather.windspeed)
+            wind_rose_df = wind_rose.make_wind_rose_from_user_data(wd, ws)
         
         self.floris_wind_rose = wind_rose
         self.floris = FlorisInterface(configuration=self.floris_config)
 
-    def run_floris(self, which: str, floris_kwargs: dict) -> None:
+    def preprocess_floris(
+        self, reinitialize_kwargs: dict = {}, run_kwargs: dict = {}
+    ) -> list[tuple[FlorisInterface, pd.DataFrame, tuple[int, int], dict, dict]]:
+        start = self.wombat.env.weather.index.min().year
+        end = self.wombat.env.weather.index.max().year
+        month_list = range(1, 13)
+        year_list = range(start, end + 1)
+        
+        weather = self.weather.loc[
+            :, [self.floris_windspeed, self.floris_wind_direction]
+        ].rename(
+            columns={
+                self.floris_windspeed: "windspeed",
+                self.floris_wind_direction: "wind_direction"
+            }
+        )
+        
+        args = [
+            (deepcopy(self.floris), weather.loc[f"{month}/{year}"], (month, year), reinitialize_kwargs, run_kwargs)
+            for month, year in product(month_list, year_list)
+        ]
+        return args
+
+    def run_floris(
+        self,
+        which: str,
+        reinitialize_kwargs: dict = {},
+        run_kwargs: dict = {},
+        nodes: int = -1
+    ) -> None:
         if which == "wind_rose":
-            self.aep = self.floris.get_farm_AEP_wind_rose_class(wind_rose=self.floris_wind_rose, **floris_kwargs)
-        elif which == "time_series":
-            # Calculate the AEP
-            self.floris.reinitialize(
-                time_series=True,
-                wind_directions=self.wombat.env.weather.wind_direction.values,
-                wind_speeds=self.wombat.env.weather.windspeed.values,
+            self.aep = self.floris.get_farm_AEP_wind_rose_class(
+                wind_rose=self.floris_wind_rose,
+                **run_kwargs
             )
-            self.floris.calculate_wake()
-            self.floris_turbine_powers = self.floris.get_turbine_powers()
+        elif which == "time_series":
+            parallel_args = self.preprocess_floris(reinitialize_kwargs, run_kwargs)
+            fi_dict, turbine_powers = run_parallel_floris(parallel_args, nodes)
+
+            self._fi_dict = fi_dict
+            self.floris_turbine_powers = turbine_powers
 
             self.aep = self.floris_turbine_powers.sum()
             print("WARNING: FLORIS TIME SERIES RESULTS ARE JUST SUMMED AT THE CURRENT MOMENT")
@@ -171,13 +286,47 @@ class Project(FromDictMixin):
         else:
             raise ValueError(f"`which` must be one of: 'wind_rose' or 'time_series', not: {which}")
 
-    def run(self, which_floris: str, floris_kwargs: dict) -> None:
-        """Run all three models in serial."""
+    def run(
+        self,
+        which_floris: str,
+        floris_reinitialize_kwargs: dict,
+        floris_run_kwargs: dict,
+        skip: list[str] = [],
+        nodes: int = -1
+    ) -> None:
+        """Run all three models in serial, or a subset if ``skip`` is used.
+
+        Args:
+            which_floris : str
+                One of "wind_rose" or "time_series" if computing the farm's AEP based on
+                a wind rose, or based on time series corresponding to the WOMBAT 
+                simulation period, respectively.
+            floris_reinitialize_kwargs : dict
+                Any additional ``FlorisInterface.reinitialize`` keyword arguments.
+            floris_run_kwargs : dict
+                Any additional ``FlorisInterface.get_farm_AEP`` or
+                ``FlorisInterface.calculate_wake()`` keyword arguments, depending on
+                ``which_floris`` is used.
+            skip : list[str], optional
+                A list of models to be skipped. This is intended to be used after a model
+                is reinitialized with a new or modified configuration. Defaults to [].
+            nodes : int, optional
+                The number of nodes to parallelize over. If -1, then it will use the
+                floor of 80% of the available CPUs on the computer. Defaults to -1.
+
+        Raises:
+            ValueError
+                Raised if ``which_floris`` is not one of "wind_rose" or "time_series".
+        """
         if which_floris not in ("wind_rose", "time_series"):
             raise ValueError(f"`which_floris` must be one of: 'wind_rose' or 'time_series', not: {which_floris}")
-        self.orbit.run()
-        self.wombat.run()
-        self.run_floris(which_floris, floris_kwargs)
+        
+        if "orbit" not in skip:
+            self.orbit.run()
+        if "wombat" not in skip:
+            self.wombat.run()
+        if "floris" not in skip:
+            self.run_floris(which_floris, floris_reinitialize_kwargs, floris_run_kwargs, nodes)
 
     def reinitialize(
         self,
@@ -214,3 +363,4 @@ class Project(FromDictMixin):
 
         if floris_config is None and floris_wind_rose is not None:
             self.setup_floris(wind_rose=floris_wind_rose)
+
