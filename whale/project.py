@@ -7,7 +7,9 @@ import yaml
 import attrs
 import numpy as np
 import pandas as pd
+import pyarrow as pa
 import networkx as nx
+import pyarrow.csv
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from attrs import define, field
@@ -69,14 +71,26 @@ def load_weather(value: str | Path | pd.DataFrame) -> pd.DataFrame:
         return value
 
     value = resolve_path(value)
-    df = pd.read_csv(
-        value,
-        engine="pyarrow",
-        parse_dates=["datetime"],
-        index_col="datetime",
-        dtype=float
+    convert_options = pa.csv.ConvertOptions(
+        timestamp_parsers=[
+            "%m/%d/%y %H:%M",
+            "%m/%d/%y %I:%M",
+            "%m/%d/%Y %H:%M",
+            "%m/%d/%Y %I:%M",
+            "%m-%d-%y %H:%M",
+            "%m-%d-%y %I:%M",
+            "%m-%d-%Y %H:%M",
+            "%m-%d-%Y %I:%M",
+        ]
     )
-    return df
+    weather = (
+        pa.csv.read_csv(value, convert_options=convert_options)
+        .to_pandas()
+        .set_index("datetime")
+        .fillna(0.0)
+        .resample("H").interpolate(limit_direction="both", limit=5)
+    )
+    return weather
 
 
 def run_chunked_floris(args: tuple) -> tuple[FlorisInterface, pd.DataFrame]:
@@ -164,10 +178,10 @@ class Project(FromDictMixin):
         floris_config(:obj:`str` | :obj:`pathlib.Path`): The FLORIS configuration file name or dictionary.
     """
     library_path: str | Path = field(converter=resolve_path)
-    weather: str | Path | pd.DataFrame = field(converter=load_weather)
-    orbit_config: str | Path | dict
-    wombat_config: str | Path | dict
-    floris_config: str | Path | dict
+    weather: str | Path | pd.DataFrame
+    orbit_config: str | Path | dict | None = field(default=None)
+    wombat_config: str | Path | dict | None = field(default=None)
+    floris_config: str | Path | dict | None = field(default=None)
     orbit_weather_cols: list[str] = field(
         validator=attrs.validators.deep_iterable(
             member_validator=attrs.validators.instance_of(str),
@@ -189,6 +203,9 @@ class Project(FromDictMixin):
     _fi_dict: dict[tuple[int, int], FlorisInterface] = field(init=False, factory=dict)
 
     def __attrs_post_init__(self) -> None:
+        if isinstance(self.weather, str | Path):
+            weather_path = self.library_path / "weather" / self.weather
+            self.weather = load_weather(weather_path)
         self.setup_orbit()
         self.setup_wombat()
         self.setup_floris()
@@ -212,6 +229,9 @@ class Project(FromDictMixin):
 
     def setup_orbit(self) -> None:
         """Creates the ORBIT Project Manager object and readies it for running an analysis."""
+        if self.orbit_config is None:
+            print("No ORBIT configuration provided, skipping model setup.")
+            return
         self.orbit_config = self.library_path / "project/config" / self.orbit_config
         self.orbit_config_dict = load_config(self.orbit_config)
         self.orbit = ProjectManager(
@@ -222,32 +242,22 @@ class Project(FromDictMixin):
 
     def setup_wombat(self) -> None:
         """Creates the WOMBAT Simulation object and readies it for running an analysis."""
+        if self.orbit_config is None:
+            print("No WOMBAT configuration provided, skipping model setup.")
+            return
+        self.orbit_config = self.library_path / "project/config" / self.orb
         self.wombat_config = self.library_path / "project/config" / self.wombat_config
         self.wombat = Simulation.from_config(self.wombat_config)
 
-    def setup_floris(self, wind_rose: WindRose | None = None) -> None:
+    def setup_floris(self) -> None:
         """Creates the FLORIS FlorisInterface object and readies it for running an
         analysis.
-
-        Args:
-            wind_rose (WindRose | None, optional): A custom ``WindRose`` object.
-            Defaults to None.
         """
+        if self.floris_config is None:
+            print("No FLORIS configuration provided, skipping model setup.")
+            return
+        self.orbit_config = self.library_path / "project/config" / self.orb
         self.floris_config = self.library_path / "project/config" / self.floris_config
-
-        start = self.wombat.env.weather.index.min()
-        stop = self.wombat.env.weather.index.max()
-        weather = self.weather.loc[
-            start: stop,
-            [self.floris_wind_direction, self.floris_windspeed]
-        ]
-        wd, ws = weather.values.T
-
-        if wind_rose is None:
-            wind_rose = WindRose()
-            wind_rose_df = wind_rose.make_wind_rose_from_user_data(wd, ws)
-        
-        self.floris_wind_rose = wind_rose
         self.floris = FlorisInterface(configuration=self.floris_config)
 
         layout = self.wombat.windfarm.layout_df
@@ -256,7 +266,7 @@ class Project(FromDictMixin):
             for x, y in zip(self.floris.layout_x, self.floris.layout_y)
         ]
 
-    def preprocess_floris(
+    def preprocess_monthly_floris(
         self, reinitialize_kwargs: dict = {}, run_kwargs: dict = {}
     ) -> list[tuple[FlorisInterface, pd.DataFrame, tuple[int, int], dict, dict]]:
         start = self.wombat.env.weather.index.min().year
@@ -287,12 +297,27 @@ class Project(FromDictMixin):
         nodes: int = -1
     ) -> None:
         if which == "wind_rose":
+            # Get the weather for the length of the WOMBAT simulation
+            start = self.wombat.env.weather.index.min()
+            stop = self.wombat.env.weather.index.max()
+            weather = self.weather.loc[
+                start: stop,
+                [self.floris_wind_direction, self.floris_windspeed]
+            ]
+            wd, ws = weather.values.T
+
+            if wind_rose is None:
+                wind_rose = WindRose()
+                wind_rose_df = wind_rose.make_wind_rose_from_user_data(wd, ws)
+            
+            self.floris_wind_rose = wind_rose
+            
             self.aep_mwh = self.floris.get_farm_AEP_wind_rose_class(
                 wind_rose=self.floris_wind_rose,
                 **run_kwargs
             ) / 1e6
         elif which == "time_series":
-            parallel_args = self.preprocess_floris(reinitialize_kwargs, run_kwargs)
+            parallel_args = self.preprocess_monthly_floris(reinitialize_kwargs, run_kwargs)
             fi_dict, turbine_powers = run_parallel_floris(parallel_args, nodes)
 
             self._fi_dict = fi_dict
