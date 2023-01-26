@@ -308,7 +308,7 @@ class Project(FromDictMixin):
             print("No WOMBAT configuration provided, skipping model setup.")
             return
 
-        if isinstance(self.wombat.config, (str, Path)):
+        if isinstance(self.wombat_config, (str, Path)):
             self.wombat_config = (
                 self.library_path / "project/config" / self.wombat_config  # type: ignore
             )
@@ -392,6 +392,7 @@ class Project(FromDictMixin):
         which: str,
         reinitialize_kwargs: dict = {},
         run_kwargs: dict = {},
+        full_wind_rose: bool = False,
         nodes: int = -1,
     ) -> None:
         """Runs either a FLORIS wind rose analysis for a simulation-level AEP value
@@ -408,6 +409,10 @@ class Project(FromDictMixin):
             run_kwargs : dict, optional
                 Any keyword arguments to be assed to ``FlorisInterface.calculate_wake()``.
                 Defaults to {}.
+            full_wind_rose : bool, optional
+                Indicates, for "wind_rose" analyses ONLY, if the full weather profile
+                from ``weather`` (True) or the limited, WOMBAT simulation period (False)
+                should be used for analyis. Defaults to False.
             nodes : int, optional
                 The number of nodes to parallelize over. If -1, then it will use the
                 floor of 80% of the available CPUs on the computer. Defaults to -1.
@@ -417,13 +422,19 @@ class Project(FromDictMixin):
         """
         if which == "wind_rose":
             # Get the weather for the length of the WOMBAT simulation
-            start = self.wombat.env.weather.index.min()
-            stop = self.wombat.env.weather.index.max()
+            if full_wind_rose:
+                assert isinstance(self.weather, pd.DataFrame)  # mypy helper
+                weather = self.weather.loc[
+                    :, [self.floris_wind_direction, self.floris_windspeed]
+                ]
+            else:
+                start = self.wombat.env.weather.index.min()
+                stop = self.wombat.env.weather.index.max()
 
-            assert isinstance(self.weather, pd.DataFrame)  # mypy helper
-            weather = self.weather.loc[
-                start:stop, [self.floris_wind_direction, self.floris_windspeed]
-            ]
+                assert isinstance(self.weather, pd.DataFrame)  # mypy helper
+                weather = self.weather.loc[
+                    start:stop, [self.floris_wind_direction, self.floris_windspeed]
+                ]
             wd, ws = weather.values.T
             wind_rose = WindRose()
             wind_rose_df = wind_rose.make_wind_rose_from_user_data(  # noqa: F841  pylint: disable=W0612
@@ -460,8 +471,9 @@ class Project(FromDictMixin):
     def run(
         self,
         which_floris: str,
-        floris_reinitialize_kwargs: dict,
-        floris_run_kwargs: dict,
+        floris_reinitialize_kwargs: dict = {},
+        floris_run_kwargs: dict = {},
+        full_wind_rose: bool = False,
         skip: list[str] = [],
         nodes: int = -1,
     ) -> None:
@@ -478,6 +490,10 @@ class Project(FromDictMixin):
                 Any additional ``FlorisInterface.get_farm_AEP`` or
                 ``FlorisInterface.calculate_wake()`` keyword arguments, depending on
                 ``which_floris`` is used.
+            full_wind_rose : bool, optional
+                Indicates, for "wind_rose" analyses ONLY, if the full weather profile
+                from ``weather`` (True) or the limited, WOMBAT simulation period (False)
+                should be used for analyis. Defaults to False.
             skip : list[str], optional
                 A list of models to be skipped. This is intended to be used after a model
                 is reinitialized with a new or modified configuration. Defaults to [].
@@ -500,7 +516,11 @@ class Project(FromDictMixin):
             self.wombat.run()
         if "floris" not in skip:
             self.run_floris(
-                which_floris, floris_reinitialize_kwargs, floris_run_kwargs, nodes
+                which_floris,
+                floris_reinitialize_kwargs,
+                floris_run_kwargs,
+                full_wind_rose,
+                nodes,
             )
 
     def reinitialize(
@@ -608,10 +628,10 @@ class Project(FromDictMixin):
         )
         if update_config:
             assert isinstance(self.floris_config, dict)  # mypy helper
-            self.floris_config["farm"]["layout_x"] = layout.floris_x.values
-            self.floris_config["farm"]["layout_y"] = layout.floris_y.values
+            self.floris_config["farm"]["layout_x"] = layout.floris_x.values.tolist()
+            self.floris_config["farm"]["layout_y"] = layout.floris_y.values.tolist()
             if config_fname is not None:
                 full_path = self.library_path / "project/config" / config_fname
-                with open(full_path) as f:
+                with open(full_path, "w") as f:
                     yaml.dump(self.floris_config, f, default_flow_style=False)
                     print(f"Updated FLORIS configuration saved to: {full_path}.")
