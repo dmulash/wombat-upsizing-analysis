@@ -6,6 +6,7 @@ from itertools import product
 import attrs
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
 from attrs import define, field
 
 from ORBIT import ProjectManager, load_config
@@ -75,13 +76,7 @@ def load_weather(value: str | Path | pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def run_chunked_floris(
-    fi: FlorisInterface,
-    weather: pd.DataFrame,
-    chunk_id: tuple[int, int],
-    reinit_kwargs: dict = {},
-    run_kwargs: dict = {},
-) -> tuple[FlorisInterface, pd.DataFrame]:
+def run_chunked_floris(args: tuple) -> tuple[FlorisInterface, pd.DataFrame]:
     """Runs ``fi.calculate_wake()`` over a chunk of a larger time series analysis and
     returns the individual turbine powers for each corresponding time
 
@@ -91,6 +86,8 @@ def run_chunked_floris(
         weather : pd.DataFrame
             A subset of the full weather profile, with only the datetime index and 
             columns: "windspeed" and "wind_direction".
+        chunk_id : tuple[int, int]
+            A tuple of the year and month for the data being processed.
         reinit_kwargs : dict, optional
             Any additional reinitialization keyword arguments. Defaults to {}.
         run_kwargs : dict, optional
@@ -102,10 +99,16 @@ def run_chunked_floris(
             parameters that can be used for further post-processing, and the
             resulting turbine powers.
     """
+    fi: FlorisInterface = args[0]
+    weather: pd.DataFrame = args[1]
+    chunk_id: tuple[int, int] = args[2]
+    reinit_kwargs: dict = args[3]
+    run_kwargs: dict = args[4]
+
     reinit_kwargs["wind_directions"] = weather.wind_direction.values
     reinit_kwargs["wind_speeds"] = weather.windspeed.values
     fi.reinitialize(time_series=True, **reinit_kwargs)
-    fi.calculate_wake()
+    fi.calculate_wake(**run_kwargs)
     power_df = pd.DataFrame(fi.get_turbine_powers()[:, 0, :], index=weather.index)
     return chunk_id, fi, power_df
 
@@ -131,10 +134,16 @@ def run_parallel_floris(
     """
     nodes = int(mp.cpu_count() * 0.8) if nodes == -1 else nodes
     with mp.Pool(nodes) as pool:
-        results = list(pool.starmap(run_chunked_floris, args_list))
+        with tqdm(total=len(args_list), desc="Calculating turbine-level power") as pbar:
+            df_list = []
+            fi_dict = {}
+            for chunk_id, fi, df in pool.imap_unordered(run_chunked_floris, args_list):
+                df_list.append(df)
+                fi_dict[chunk_id] = fi
+                pbar.update()
     
-    fi_dict = {chunk_id: fi for chunk_id, fi, _ in results}
-    turbine_power_df = pd.concat([df for *_, df in results]).sort_index()
+    fi_dict = dict(sorted(fi_dict.items()))
+    turbine_power_df = pd.concat(df_list).sort_index()
     return fi_dict, turbine_power_df
 
 @define
@@ -171,7 +180,7 @@ class Project(FromDictMixin):
     orbit: ProjectManager = field(init=False)
     floris: FlorisInterface = field(init=False)
     floris_wind_rose: WindRose = field(init=False)
-    aep: float = field(init=False)
+    aep_mwh: float = field(init=False)
     floris_turbine_powers: pd.DataFrame = field(init=False)
     _fi_dict: dict[tuple[int, int], FlorisInterface] = field(init=False, factory=dict)
 
@@ -255,7 +264,7 @@ class Project(FromDictMixin):
         )
         
         args = [
-            (deepcopy(self.floris), weather.loc[f"{month}/{year}"], (month, year), reinitialize_kwargs, run_kwargs)
+            (deepcopy(self.floris), weather.loc[f"{month}/{year}"], (year, month), reinitialize_kwargs, run_kwargs)
             for month, year in product(month_list, year_list)
         ]
         return args
@@ -268,10 +277,10 @@ class Project(FromDictMixin):
         nodes: int = -1
     ) -> None:
         if which == "wind_rose":
-            self.aep = self.floris.get_farm_AEP_wind_rose_class(
+            self.aep_mwh = self.floris.get_farm_AEP_wind_rose_class(
                 wind_rose=self.floris_wind_rose,
                 **run_kwargs
-            )
+            ) / 1e6
         elif which == "time_series":
             parallel_args = self.preprocess_floris(reinitialize_kwargs, run_kwargs)
             fi_dict, turbine_powers = run_parallel_floris(parallel_args, nodes)
@@ -279,8 +288,8 @@ class Project(FromDictMixin):
             self._fi_dict = fi_dict
             self.floris_turbine_powers = turbine_powers
 
-            self.aep = self.floris_turbine_powers.sum()
-            print("WARNING: FLORIS TIME SERIES RESULTS ARE JUST SUMMED AT THE CURRENT MOMENT")
+            n_years = self.floris_turbine_powers.index.year.unique().size
+            self.aep_mwh = self.floris_turbine_powers.sum() / n_years / 1e6
             # TODO: Calculate the availability x turbine powers based on coordinate re-matching
 
         else:
