@@ -3,9 +3,12 @@ from copy import deepcopy
 from pathlib import Path
 from itertools import product
 
+import yaml
 import attrs
 import numpy as np
 import pandas as pd
+import networkx as nx
+import matplotlib.pyplot as plt
 from tqdm import tqdm
 from attrs import define, field
 
@@ -180,6 +183,7 @@ class Project(FromDictMixin):
     orbit: ProjectManager = field(init=False)
     floris: FlorisInterface = field(init=False)
     floris_wind_rose: WindRose = field(init=False)
+    floris_turbine_order: list[str] = field(init=False, factory=list)
     aep_mwh: float = field(init=False)
     floris_turbine_powers: pd.DataFrame = field(init=False)
     _fi_dict: dict[tuple[int, int], FlorisInterface] = field(init=False, factory=dict)
@@ -246,6 +250,12 @@ class Project(FromDictMixin):
         self.floris_wind_rose = wind_rose
         self.floris = FlorisInterface(configuration=self.floris_config)
 
+        layout = self.wombat.windfarm.layout_df
+        self.floris_turbine_order = [
+            layout.loc[(layout.floris_x == x) & (layout.floris_y == y), "id"].values[0]
+            for x, y in zip(self.floris.layout_x, self.floris.layout_y)
+        ]
+
     def preprocess_floris(
         self, reinitialize_kwargs: dict = {}, run_kwargs: dict = {}
     ) -> list[tuple[FlorisInterface, pd.DataFrame, tuple[int, int], dict, dict]]:
@@ -287,9 +297,11 @@ class Project(FromDictMixin):
 
             self._fi_dict = fi_dict
             self.floris_turbine_powers = turbine_powers
+            self.floris_turbine_powers.colums = self.floris_turbine_order
+
 
             n_years = self.floris_turbine_powers.index.year.unique().size
-            self.aep_mwh = self.floris_turbine_powers.sum() / n_years / 1e6
+            self.aep_mwh = self.floris_turbine_powers.values.sum() / n_years / 1e6
             # TODO: Calculate the availability x turbine powers based on coordinate re-matching
 
         else:
@@ -372,4 +384,81 @@ class Project(FromDictMixin):
 
         if floris_config is None and floris_wind_rose is not None:
             self.setup_floris(wind_rose=floris_wind_rose)
+
+    def plot_farm(self, figure_kwargs: dict = {}, draw_kwargs: dict = {}, return_fig: bool = False) -> None | tuple[plt.figure, plt.axes]:
+        """Plot the graph representation of the windfarm as represented through WOMBAT.
+
+        Args:
+            figure_kwargs : dict, optional
+                Customized keyword arguments for matplotlib figure instantiation that
+                will passed as ``plt.figure(**figure_kwargs). Defaults to {}.``
+            draw_kwargs : dict, optional
+                Customized keyword arguments for ``networkx.draw()`` that can will
+                passed as ``nx.draw(**figure_kwargs). Defaults to {}.``
+            return_fig : bool, optional
+                Whether or not to return the figure and axes objects for further editing
+                and/or saving. Defaults to False.
+
+        Returns:
+            None | tuple[plt.figure, plt.axes]: _description_
+        """
+        figure_kwargs.setdefault("figsize", (14, 12))
+        figure_kwargs.setdefault("dpi", 200)
+        
+        fig = plt.figure(**figure_kwargs)
+        ax = fig.add_subplot(111)
+
+        windfarm = self.wombat.windfarm
+        positions = {name: np.array([node["longitude"], node["latitude"]]) for name, node in windfarm.graph.nodes(data=True)}
+        
+        draw_kwargs.setdefault("with_labels", True)
+        draw_kwargs.setdefault("font_weight", "bold")
+        draw_kwargs.setdefault("node_color", "#E37225")
+        nx.draw(windfarm.graph, pos=positions, ax=ax, **draw_kwargs)
+
+        fig.tight_layout()
+        plt.show()
+
+        if return_fig:
+            return fig, ax
+
+    def generate_floris_positions_from_layout(
+        self,
+        x_col: str = "easting",
+        y_col: str = "northing",
+        update_config: bool = True,
+        config_fname: str | None = None,
+    ) -> None:
+        """Updates the FLORIS layout_x and layout_y based on the relative coordinates
+        from the WOMBAT layout file.
+
+        Args:
+            x_col : str, optional
+                The relative, distance-based x-coordinate column name. Defaults to "easting".
+            y_col : str, optional
+                The relative, distance-based y-coordinate column name. Defaults to "northing".
+            update_config : bool, optional
+                Run ``FlorisInterface.reinitialize`` with the updated ``layout_x`` and
+                ``layout_y`` values. Defaults to True.
+            config_fname : str | None, optional
+                Provide a file name if ``update_config`` and this new configuration
+                should be saved. Defaults to None.
+        """
+        layout = self.wombat.windfarm.layout_df
+        x_min = layout[x_col].min()
+        y_min = layout[y_col].min()
+        layout.assign(floris_x=layout[x_col] - x_min, floris_y=layout[y_col] - y_min)
+        self.floris.reinitialize(
+            layout_x=layout.floris_x.values,
+            layout_y=layout.floris_y.values
+        )
+        if update_config:
+            self.floris_config["farm"]["layout_x"] = layout.floris_x.values
+            self.floris_config["farm"]["layout_y"] = layout.floris_y.values
+            if config_fname is not None:
+                full_path = self.library_path / "project/config" / config_fname
+                with open(full_path) as f:
+                    yaml.dump(self.floris_config, f, default_flow_style=False)
+                    print(f"Updated FLORIS configuration saved to: {full_path}.")
+        
 
