@@ -457,6 +457,9 @@ class Project(FromDictMixin):
 
             self._fi_dict = fi_dict
             self.floris_turbine_powers = turbine_powers
+            self.connect_floris_to_turbines(
+                x_col=self.floris_x_col, y_col=self.floris_y_col
+            )
             self.floris_turbine_powers.colums = self.floris_turbine_order
 
             n_years = self.floris_turbine_powers.index.year.unique().size
@@ -582,13 +585,15 @@ class Project(FromDictMixin):
         x_min = layout[x_col].min()
         y_min = layout[y_col].min()
         layout.assign(floris_x=layout[x_col] - x_min, floris_y=layout[y_col] - y_min)
-        self.floris.reinitialize(
-            layout_x=layout.floris_x.values, layout_y=layout.floris_y.values
-        )
+        layout = layout.loc[
+            layout.id.isin(self.wombat.windfarm.turbine_id), ["floris_x", "floris_y"]
+        ]
+        x, y = layout.values.T
+        self.floris.reinitialize(layout_x=x, layout_y=y)
         if update_config:
             assert isinstance(self.floris_config, dict)  # mypy helper
-            self.floris_config["farm"]["layout_x"] = layout.floris_x.values.tolist()
-            self.floris_config["farm"]["layout_y"] = layout.floris_y.values.tolist()
+            self.floris_config["farm"]["layout_x"] = x.tolist()
+            self.floris_config["farm"]["layout_y"] = y.tolist()
             if config_fname is not None:
                 full_path = self.library_path / "project/config" / config_fname
                 with open(full_path, "w") as f:
@@ -641,7 +646,7 @@ class Project(FromDictMixin):
             return fig, ax
         return None
 
-    def power_production(self, frequency: str = "month-year") -> float | pd.DataFrame:
+    def power_production(self, frequency: str = "month-year") -> pd.DataFrame:
         """Computes the monthly power production for the simulation by extrapolating
         the AEP if FLORIS results were computed by a wind rose, or using the time series
         results, and multiplying it by the WOMBAT monthly
@@ -667,7 +672,7 @@ class Project(FromDictMixin):
 
         n_years = self.wombat.env.weather.index.year.unique().size
         # Extrapolate the AEP to monthly outputs if only the AEP is calculated
-        if not isinstance(self.floris_turbine_powers, pd.DataFrame):
+        if not hasattr(self, "floris_turbine_powers"):
             availability = self.wombat.metrics.production_based_availability(
                 frequency=frequency, by="windfarm"
             ).rename(columns={"windfarm": "Energy Production (GWh)"})
