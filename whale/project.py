@@ -685,7 +685,6 @@ class Project(FromDictMixin):
                 power_gwh = availability * self.aep_mwh / 12 / 1000
             return power_gwh
 
-        # TODO: FIGURE OUT THIS LOGIC
         # Use the turbine powers to gather the monthly production
         availability = self.wombat.metrics.production_based_availability(
             frequency="month-year", by="turbine"
@@ -697,6 +696,9 @@ class Project(FromDictMixin):
             .sum()
             .loc[availability.index]
         ) * availability.loc[:, self.floris_turbine_order]
+
+        # TODO: Aggregate to the desired frequency level
+
         power_gwh = power_gwh.sum(axis=1)
         power_gwh.columns = ["Energy Production (GWh"]
         return power_gwh
