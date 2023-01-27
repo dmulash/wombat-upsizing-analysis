@@ -554,6 +554,50 @@ class Project(FromDictMixin):
 
         return
 
+    # Helper methods
+
+    def generate_floris_positions_from_layout(
+        self,
+        x_col: str = "easting",
+        y_col: str = "northing",
+        update_config: bool = True,
+        config_fname: str | None = None,
+    ) -> None:
+        """Updates the FLORIS layout_x and layout_y based on the relative coordinates
+        from the WOMBAT layout file.
+
+        Args:
+            x_col : str, optional
+                The relative, distance-based x-coordinate column name. Defaults to "easting".
+            y_col : str, optional
+                The relative, distance-based y-coordinate column name. Defaults to "northing".
+            update_config : bool, optional
+                Run ``FlorisInterface.reinitialize`` with the updated ``layout_x`` and
+                ``layout_y`` values. Defaults to True.
+            config_fname : str | None, optional
+                Provide a file name if ``update_config`` and this new configuration
+                should be saved. Defaults to None.
+        """
+        layout = self.wombat.windfarm.layout_df
+        x_min = layout[x_col].min()
+        y_min = layout[y_col].min()
+        layout.assign(floris_x=layout[x_col] - x_min, floris_y=layout[y_col] - y_min)
+        self.floris.reinitialize(
+            layout_x=layout.floris_x.values, layout_y=layout.floris_y.values
+        )
+        if update_config:
+            assert isinstance(self.floris_config, dict)  # mypy helper
+            self.floris_config["farm"]["layout_x"] = layout.floris_x.values.tolist()
+            self.floris_config["farm"]["layout_y"] = layout.floris_y.values.tolist()
+            if config_fname is not None:
+                full_path = self.library_path / "project/config" / config_fname
+                with open(full_path, "w") as f:
+                    yaml.dump(self.floris_config, f, default_flow_style=False)
+                    print(f"Updated FLORIS configuration saved to: {full_path}.")
+
+    # Results methods
+    # TODO: Figure out the actual workflows requried to have more complete/easier reporting
+
     def plot_farm(
         self, figure_kwargs: dict = {}, draw_kwargs: dict = {}, return_fig: bool = False
     ) -> None | tuple[plt.figure, plt.axes]:
@@ -597,41 +641,57 @@ class Project(FromDictMixin):
             return fig, ax
         return None
 
-    def generate_floris_positions_from_layout(
-        self,
-        x_col: str = "easting",
-        y_col: str = "northing",
-        update_config: bool = True,
-        config_fname: str | None = None,
-    ) -> None:
-        """Updates the FLORIS layout_x and layout_y based on the relative coordinates
-        from the WOMBAT layout file.
+    def power_production(self, frequency: str = "month-year") -> float | pd.DataFrame:
+        """Computes the monthly power production for the simulation by extrapolating
+        the AEP if FLORIS results were computed by a wind rose, or using the time series
+        results, and multiplying it by the WOMBAT monthly
+        ``Metrics.production_based_availability``.
 
         Args:
-            x_col : str, optional
-                The relative, distance-based x-coordinate column name. Defaults to "easting".
-            y_col : str, optional
-                The relative, distance-based y-coordinate column name. Defaults to "northing".
-            update_config : bool, optional
-                Run ``FlorisInterface.reinitialize`` with the updated ``layout_x`` and
-                ``layout_y`` values. Defaults to True.
-            config_fname : str | None, optional
-                Provide a file name if ``update_config`` and this new configuration
-                should be saved. Defaults to None.
+            frequency : str, optional
+                One of "project" (project total), "annual" (annual total), or
+                "month-year" (monthly totals for each year). Defaults to "month-year".
+
+        Raises:
+            ValueError
+                Raised if ``frequency`` is not one of: "project", "annual", "month-year".
+
+        Returns:
+            pd.DataFrame
+                The wind farm-level power prodcution for the desired ``frequency``.
         """
-        layout = self.wombat.windfarm.layout_df
-        x_min = layout[x_col].min()
-        y_min = layout[y_col].min()
-        layout.assign(floris_x=layout[x_col] - x_min, floris_y=layout[y_col] - y_min)
-        self.floris.reinitialize(
-            layout_x=layout.floris_x.values, layout_y=layout.floris_y.values
+        # Check the frequency input
+        opts = ("project", "annual", "month-year")
+        if frequency not in opts:
+            raise ValueError(f"`frequency` must be one of {opts}.")  # type: ignore
+
+        n_years = self.wombat.env.weather.index.year.unique().size
+        # Extrapolate the AEP to monthly outputs if only the AEP is calculated
+        if not isinstance(self.floris_turbine_powers, pd.DataFrame):
+            availability = self.wombat.metrics.production_based_availability(
+                frequency=frequency, by="windfarm"
+            ).rename(columns={"windfarm": "Energy Production (GWh)"})
+
+            if frequency == "project":
+                power_gwh = availability * n_years * self.aep_mwh / 1000
+            elif frequency == "annual":
+                power_gwh = availability * self.aep_mwh / 1000
+            else:
+                power_gwh = availability * self.aep_mwh / 12 / 1000
+            return power_gwh
+
+        # TODO: FIGURE OUT THIS LOGIC
+        # Use the turbine powers to gather the monthly production
+        availability = self.wombat.metrics.production_based_availability(
+            frequency="month-year", by="turbine"
         )
-        if update_config:
-            assert isinstance(self.floris_config, dict)  # mypy helper
-            self.floris_config["farm"]["layout_x"] = layout.floris_x.values.tolist()
-            self.floris_config["farm"]["layout_y"] = layout.floris_y.values.tolist()
-            if config_fname is not None:
-                full_path = self.library_path / "project/config" / config_fname
-                with open(full_path, "w") as f:
-                    yaml.dump(self.floris_config, f, default_flow_style=False)
-                    print(f"Updated FLORIS configuration saved to: {full_path}.")
+        power_gwh = self.floris_turbine_powers / 1000
+        power_gwh = (
+            power_gwh.assign(year=power_gwh.index.year, month=power_gwh.index.month)
+            .groupby(["year", "month"])
+            .sum()
+            .loc[availability.index]
+        ) * availability.loc[:, self.floris_turbine_order]
+        power_gwh = power_gwh.sum(axis=1)
+        power_gwh.columns = ["Energy Production (GWh"]
+        return power_gwh
