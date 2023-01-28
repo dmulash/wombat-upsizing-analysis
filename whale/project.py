@@ -171,9 +171,9 @@ def run_parallel_floris(
             A dictionary of the ``chunk_id`` and ``FlorisInterface`` object, and the
             full turbine power dataframe (without renamed columns).
     """
-    nodes = int(mp.cpu_count() * 0.8) if nodes == -1 else nodes
+    nodes = int(mp.cpu_count() * 0.7) if nodes == -1 else nodes
     with mp.Pool(nodes) as pool:
-        with tqdm(total=len(args_list), desc="Calculating turbine-level power") as pbar:
+        with tqdm(total=len(args_list), desc="Time series energy calculation") as pbar:
             df_list = []
             fi_dict = {}
             for chunk_id, fi, df in pool.imap_unordered(run_chunked_floris, args_list):
@@ -255,6 +255,9 @@ class Project(FromDictMixin):
     aep_mwh: float = field(init=False)
     floris_turbine_powers: pd.DataFrame = field(init=False)
     _fi_dict: dict[tuple[int, int], FlorisInterface] = field(init=False, factory=dict)
+    operations_start: pd.Timestamp = field(init=False)
+    operations_end: pd.Timestamp = field(init=False)
+    operations_years: int = field(init=False)
 
     def __attrs_post_init__(self) -> None:
         if isinstance(self.weather, str | Path):
@@ -313,6 +316,9 @@ class Project(FromDictMixin):
                 self.library_path / "project/config" / self.wombat_config  # type: ignore
             )
         self.wombat = Simulation.from_config(self.wombat_config)
+        self.operations_start = self.wombat.env.weather.index.min()
+        self.operations_end = self.wombat.env.weather.index.max()
+        self.operations_years = self.operations_end.year - self.operations_start.year
 
     def setup_floris(self) -> None:
         """Creates the FLORIS FlorisInterface object and readies it for running an
@@ -339,8 +345,15 @@ class Project(FromDictMixin):
         ]
 
     def preprocess_monthly_floris(
-        self, reinitialize_kwargs: dict = {}, run_kwargs: dict = {}
-    ) -> list[tuple[FlorisInterface, pd.DataFrame, tuple[int, int], dict, dict]]:
+        self,
+        reinitialize_kwargs: dict = {},
+        run_kwargs: dict = {},
+        cut_in_wind_speed: float | None = None,
+        cut_out_wind_speed: float | None = None,
+    ) -> tuple[
+        list[tuple[FlorisInterface, pd.DataFrame, tuple[int, int], dict, dict]],
+        np.ndarray,
+    ]:
         """Creates the monthly chunked inputs to run a parallelized FLORIS time series
         analysis.
 
@@ -351,29 +364,37 @@ class Project(FromDictMixin):
             run_kwargs : dict, optional
                 Any keyword arguments to be assed to ``FlorisInterface.calculate_wake()``.
                 Defaults to {}.
+            cut_in_wind_speed : float, optional
+                The wind speed, in m/s, at which a turbine will start producing power.
+            cut_out_wind_speed : float, optional
+                The wind speed, in m/s, at which a turbine will stop producing power.
 
         Returns:
-            list[tuple[FlorisInterface, pd.DataFrame, tuple[int, int], dict, dict]]
+            tuple[list[tuple[FlorisInterface, pd.DataFrame, tuple[int, int], dict, dict]], np.ndarray]
                 A list of tuples of:
                  - a copy of the ``FlorisInterface`` object
                  - tuple of year and month
                  - a copy of ``reinitialize_kwargs``
                  - c copy of ``run_kwargs``
         """
-        start = self.wombat.env.weather.index.min().year
-        end = self.wombat.env.weather.index.max().year
         month_list = range(1, 13)
-        year_list = range(start, end + 1)
+        year_list = range(self.operations_start.year, self.operations_end.year + 1)
 
         assert isinstance(self.weather, pd.DataFrame)  # mypy helper
         weather = self.weather.loc[
-            :, [self.floris_windspeed, self.floris_wind_direction]
+            self.operations_start : self.operations_end,
+            [self.floris_windspeed, self.floris_wind_direction],
         ].rename(
             columns={
                 self.floris_windspeed: "windspeed",
                 self.floris_wind_direction: "wind_direction",
             }
         )
+        zero_power_filter = np.full((weather.shape[0]), True)
+        if cut_out_wind_speed is not None:
+            zero_power_filter = weather.windspeed < cut_out_wind_speed
+        if cut_in_wind_speed is not None:
+            zero_power_filter &= weather.windspeed >= cut_in_wind_speed
 
         args = [
             (
@@ -385,7 +406,7 @@ class Project(FromDictMixin):
             )
             for month, year in product(month_list, year_list)
         ]
-        return args
+        return args, zero_power_filter
 
     def run_floris(
         self,
@@ -393,6 +414,8 @@ class Project(FromDictMixin):
         reinitialize_kwargs: dict = {},
         run_kwargs: dict = {},
         full_wind_rose: bool = False,
+        cut_in_wind_speed: float | None = None,
+        cut_out_wind_speed: float | None = None,
         nodes: int = -1,
     ) -> None:
         """Runs either a FLORIS wind rose analysis for a simulation-level AEP value
@@ -413,6 +436,12 @@ class Project(FromDictMixin):
                 Indicates, for "wind_rose" analyses ONLY, if the full weather profile
                 from ``weather`` (True) or the limited, WOMBAT simulation period (False)
                 should be used for analyis. Defaults to False.
+            cut_in_wind_speed : float, optional
+                The wind speed, in m/s, at which a turbine will start producing power.
+                Should only be a value if running a time series analysis. Defaults to None.
+            cut_out_wind_speed : float, optional
+                The wind speed, in m/s, at which a turbine will stop producing power.
+                Should only be a value if running a time series analysis. Defaults to None.
             nodes : int, optional
                 The number of nodes to parallelize over. If -1, then it will use the
                 floor of 80% of the available CPUs on the computer. Defaults to -1.
@@ -421,6 +450,9 @@ class Project(FromDictMixin):
             ValueError: _description_
         """
         if which == "wind_rose":
+            # TODO: Change this to be modify the standard behavior, and get the turbine
+            # powers to properly account for availability later
+
             # Get the weather for the length of the WOMBAT simulation
             if full_wind_rose:
                 assert isinstance(self.weather, pd.DataFrame)  # mypy helper
@@ -440,7 +472,6 @@ class Project(FromDictMixin):
             wind_rose_df = wind_rose.make_wind_rose_from_user_data(  # noqa: F841  pylint: disable=W0612
                 wd, ws
             )
-
             self.floris_wind_rose = wind_rose
 
             self.aep_mwh = (
@@ -450,8 +481,8 @@ class Project(FromDictMixin):
                 / 1e6
             )
         elif which == "time_series":
-            parallel_args = self.preprocess_monthly_floris(
-                reinitialize_kwargs, run_kwargs
+            parallel_args, zero_power_filter = self.preprocess_monthly_floris(
+                reinitialize_kwargs, run_kwargs, cut_in_wind_speed, cut_out_wind_speed
             )
             fi_dict, turbine_powers = run_parallel_floris(parallel_args, nodes)
 
@@ -460,12 +491,21 @@ class Project(FromDictMixin):
             self.connect_floris_to_turbines(
                 x_col=self.floris_x_col, y_col=self.floris_y_col
             )
-            self.floris_turbine_powers.colums = self.floris_turbine_order
+            self.floris_turbine_powers.columns = self.floris_turbine_order
+            self.floris_turbine_powers = (
+                self.floris_turbine_powers.where(
+                    np.repeat(
+                        zero_power_filter.reshape(-1, 1),
+                        self.floris_turbine_powers.shape[1],
+                        axis=1,
+                    ),
+                    0.0,
+                )
+                / 1e6
+            )
 
             n_years = self.floris_turbine_powers.index.year.unique().size
-            self.aep_mwh = self.floris_turbine_powers.values.sum() / n_years / 1e6
-            # TODO: Calculate the availability x turbine powers based on coordinate re-matching
-
+            self.aep_mwh = self.floris_turbine_powers.values.sum() / n_years
         else:
             raise ValueError(
                 f"`which` must be one of: 'wind_rose' or 'time_series', not: {which}"
@@ -478,6 +518,8 @@ class Project(FromDictMixin):
         floris_run_kwargs: dict = {},
         full_wind_rose: bool = False,
         skip: list[str] = [],
+        cut_in_wind_speed: float | None = None,
+        cut_out_wind_speed: float | None = None,
         nodes: int = -1,
     ) -> None:
         """Run all three models in serial, or a subset if ``skip`` is used.
@@ -500,6 +542,16 @@ class Project(FromDictMixin):
             skip : list[str], optional
                 A list of models to be skipped. This is intended to be used after a model
                 is reinitialized with a new or modified configuration. Defaults to [].
+            cut_in_wind_speed : float, optional
+                The wind speed, in m/s, at which a turbine will start producing power.
+                Can also be provided in ``floris_reinitialize_kwargs`` for a wind rose
+                analysis, but must be provided here for a time series analysis. Defaults
+                to None.
+            cut_out_wind_speed : float, optional
+                The wind speed, in m/s, at which a turbine will stop producing power.
+                Can also be provided in ``floris_reinitialize_kwargs`` for a wind rose
+                analysis, but must be provided here for a time series analysis. Defaults
+                to None.
             nodes : int, optional
                 The number of nodes to parallelize over. If -1, then it will use the
                 floor of 80% of the available CPUs on the computer. Defaults to -1.
@@ -513,6 +565,13 @@ class Project(FromDictMixin):
                 f"`which_floris` must be one of: 'wind_rose' or 'time_series', not: {which_floris}"
             )
 
+        if which_floris == "wind_rose" and cut_in_wind_speed is not None:
+            floris_reinitialize_kwargs.update({"cut_in_wind_speed": cut_in_wind_speed})
+        if which_floris == "wind_rose" and cut_out_wind_speed is not None:
+            floris_reinitialize_kwargs.update(
+                {"cut_out_wind_speed": cut_out_wind_speed}
+            )
+
         if "orbit" not in skip:
             self.orbit.run()
         if "wombat" not in skip:
@@ -523,6 +582,8 @@ class Project(FromDictMixin):
                 floris_reinitialize_kwargs,
                 floris_run_kwargs,
                 full_wind_rose,
+                cut_in_wind_speed,
+                cut_out_wind_speed,
                 nodes,
             )
 
@@ -646,6 +707,35 @@ class Project(FromDictMixin):
             return fig, ax
         return None
 
+    def capex(self, per_mw: bool = False, breakdown: bool = False) -> pd.DataFrame:
+        """Provides a thin wrapper to ORBIT's ``ProjectManager`` CapEx calculations that
+        can provide a breakdown of total or normalize it by the project's capacity, in MW.
+
+        Args:
+            per_mw : bool, optional
+                Provide the CapEx normalized by the project's capacity, in MW. Defaults
+                to False.
+            breakdown : bool, optional
+                Provide a detailed view of the CapEx breakdown, and a total, which is
+                the sum of the BOS, turbine, project, and soft CapEx categories.
+                Defaults to False.
+
+        Returns:
+            pd.DataFrame
+                Project CapEx in the base currency or normalized by project capacity, in MW.
+        """
+        if breakdown:
+            capex = pd.DataFrame.from_dict(
+                self.orbit.capex_breakdown, orient="index", columns=["CapEx"]
+            )
+            capex.loc["Total"] = self.orbit.total_capex
+        else:
+            capex = pd.DataFrame([], columns="CapEx", index="Total")
+
+        if per_mw:
+            capex["CapEx per MW"] = capex / self.orbit.capacity
+        return capex
+
     def power_production(self, frequency: str = "month-year") -> pd.DataFrame:
         """Computes the monthly power production for the simulation by extrapolating
         the AEP if FLORIS results were computed by a wind rose, or using the time series
@@ -677,15 +767,16 @@ class Project(FromDictMixin):
                 frequency=frequency, by="windfarm"
             ).rename(columns={"windfarm": "Energy Production (GWh)"})
 
+            # Calculate the power, in GWh, with the assumption that data is annualized,
+            # then modify based on further dis/aggregation
+            power_gwh = availability * self.aep_mwh / 1000
             if frequency == "project":
-                power_gwh = availability * n_years * self.aep_mwh / 1000
-            elif frequency == "annual":
-                power_gwh = availability * self.aep_mwh / 1000
-            else:
-                power_gwh = availability * self.aep_mwh / 12 / 1000
+                power_gwh *= n_years
+            elif frequency == "month-year":
+                power_gwh /= 12
             return power_gwh
 
-        # Use the turbine powers to gather the monthly production
+        # Use the turbine powers x availability to gather the monthly production
         availability = self.wombat.metrics.production_based_availability(
             frequency="month-year", by="turbine"
         )
@@ -697,8 +788,70 @@ class Project(FromDictMixin):
             .loc[availability.index]
         ) * availability.loc[:, self.floris_turbine_order]
 
-        # TODO: Aggregate to the desired frequency level
+        # Aggregate to the desired frequency level
+        if frequency == "month-year":
+            power_gwh = power_gwh.sum(axis=1).to_frame()
+        elif frequency == "annual":
+            power_gwh = (
+                power_gwh.reset_index(drop=False)
+                .groupby("year")
+                .sum()
+                .drop(columns=["month"])
+                .sum(axis=1)
+                .to_frame()
+            )
+        elif frequency == "project":
+            power_gwh = pd.DataFrame([power_gwh.reset_index(drop=False).values.sum()])
 
-        power_gwh = power_gwh.sum(axis=1)
-        power_gwh.columns = ["Energy Production (GWh"]
-        return power_gwh
+        return power_gwh.rename(columns={0: "Energy Production (GWh)"})
+
+    def npv(
+        self, frequency: str, discount_rate: float = 0.025, offtake_price: float = 80
+    ) -> pd.DataFrame:
+        """Calculates the net present value of the windfarm at a project, annual, or
+        monthly resolution given a base discount rate and offtake price.
+
+        .. note:: This function will be improved over time to incorporate more of the
+            financial parameter at play, such as PPAs.
+
+        Parameters
+        ----------
+        frequency : str
+            One of "project", "annual", "monthly", or "month-year".
+        discount_rate : float, optional
+            The rate of return that could be earned on alternative investments, by
+            default 0.025.
+        offtake_price : float, optional
+            Price of energy, per MWh, by default 80.
+
+        Returns
+        -------
+        pd.DataFrame
+            The project net prsent value at the desired time resolution.
+        """
+        # Check the frequency input
+        opts = ("project", "annual", "month-year")
+        if frequency not in opts:
+            raise ValueError(f"`frequency` must be one of {opts}.")  # type: ignore
+
+        # Gather the OpEx, and revenues
+        expenditures = self.wombat.metrics.opex("month-year")
+        production = self.power_production("month-year")
+        revenue: pd.DataFrame = production / 1000 * offtake_price  # MWh
+
+        # Instantiate the NPV with the required calculated data and compute the result
+        npv = revenue.join(expenditures).rename(
+            columns={"Energy Production (GWh)": "revenue"}
+        )
+        N = npv.shape[0]
+        npv.loc[:, "discount"] = np.full(N, 1 + discount_rate) ** np.arange(N)
+        npv.loc[:, "NPV"] = (npv.revenue.values - npv.OpEx.values) / npv.discount.values
+
+        # Aggregate the results to the required resolution
+        if frequency == "project":
+            return pd.DataFrame(npv.reset_index().sum()).T[["NPV"]]
+        elif frequency == "annual":
+            return npv.reset_index().groupby("year").sum()[["NPV"]]
+        elif frequency == "monthly":
+            return npv.reset_index().groupby("month").sum()[["NPV"]]
+        return npv[["NPV"]]
