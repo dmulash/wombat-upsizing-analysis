@@ -2,6 +2,9 @@
 FLORIS (AEP) simulation libraries for simplified modeling workflow.
 """
 
+from __future__ import annotations
+
+import json
 import multiprocessing as mp
 from copy import deepcopy
 from pathlib import Path
@@ -195,7 +198,7 @@ class Project(FromDictMixin):
         library_path : str | pathlib.Path
             The file path where the configuration data for ORBIT, WOMBAT, and FLORIS can
             be found.
-        weather : str | pathlib.Path
+        weather_profile : str | pathlib.Path
             The file path where the weather profile data is located, with the following
             column requirements:
              - "datetime": The timestamp column
@@ -229,10 +232,16 @@ class Project(FromDictMixin):
     """
 
     library_path: Path = field(converter=resolve_path)
-    weather: str | Path | pd.DataFrame
-    orbit_config: str | Path | dict | None = field(default=None)
-    wombat_config: str | Path | dict | None = field(default=None)
-    floris_config: str | Path | dict | None = field(default=None)
+    weather_profile: str = field(converter=str)
+    orbit_config: str | Path | dict | None = field(
+        default=None, validator=attrs.validators.instance_of((str, Path, dict, None))
+    )
+    wombat_config: str | Path | dict | None = field(
+        default=None, validator=attrs.validators.instance_of((str, Path, dict, None))
+    )
+    floris_config: str | Path | dict | None = field(
+        default=None, validator=attrs.validators.instance_of((str, Path, dict, None))
+    )
     orbit_weather_cols: list[str] = field(
         default=["windspeed", "wave_height"],
         validator=attrs.validators.deep_iterable(
@@ -246,7 +255,10 @@ class Project(FromDictMixin):
     floris_y_col: str = field(default="floris_y", converter=str)
 
     # Internally created attributes, aka, no user inputs to these
+    weather: pd.DataFrame = field(init=False)
     orbit_config_dict: dict = field(factory=dict, init=False)
+    wombat_config_dict: dict = field(factory=dict, init=False)
+    floris_config_dict: dict = field(factory=dict, init=False)
     wombat: Simulation = field(init=False)
     orbit: ProjectManager = field(init=False)
     floris: FlorisInterface = field(init=False)
@@ -260,8 +272,8 @@ class Project(FromDictMixin):
     operations_years: int = field(init=False)
 
     def __attrs_post_init__(self) -> None:
-        if isinstance(self.weather, str | Path):
-            weather_path = self.library_path / "weather" / self.weather
+        if isinstance(self.weather_profile, str | Path):
+            weather_path = self.library_path / "weather" / self.weather_profile
             self.weather = load_weather(weather_path)
         self.setup_orbit()
         self.setup_wombat()
@@ -288,6 +300,75 @@ class Project(FromDictMixin):
                 f"The input path to {attribute.name}: {value} is not a directory."
             )
 
+    @classmethod
+    def from_file(cls, library_path: str | Path, config_file: str | Path) -> Project:
+        """Creates a ``Project`` object from either a JSON or YAML file. See
+        :py:class:`Project` for configuration requirements.
+
+        Args:
+            library_path (`str | Path`): The library path to be used in the simulation.
+            config_file (str | Path): The configuration file to create a :py:class:`Project`
+                object from, which should be located at:
+                ``library_path`` / project / config / ``config_file``.
+
+        Raises:
+            FileExistsError: Raised if :py:attr:`library_path` is not a valid directory.
+            ValueError: Raised if :py:attr:`config_file` is not a JSON or YAML file.
+
+        Returns:
+            Project: An initialized Project object.
+        """
+        library_path = Path(library_path).resolve()
+        if not library_path.is_dir():
+            raise FileExistsError(f"{library_path} cannot be found.")
+        config_file = Path(config_file)
+        if config_file.suffix == ".json":
+            with open(library_path / "project/config" / config_file, "r") as f:
+                config_dict = dict(json.load(f))
+        if config_file.suffix in (".yml", ".yaml"):
+            config_dict = load_yaml(library_path / "project/config", config_file)
+        else:
+            raise ValueError(
+                "The configuration file must be a JSON (.json) or YAML (.yaml or .yml) file."
+            )
+        return Project.from_dict(config_dict)
+
+    @property
+    def config_dict(self) -> dict:
+        """Generates a configuration dictionary that can be saved to a new file for later
+        re/use.
+
+        Returns:
+            dict: YAML-safe dictionary of a Project-loadable configuration.
+        """
+        wombat_config_dict = deepcopy(self.wombat_config_dict)
+        wombat_config_dict["library"] = str(wombat_config_dict["library"])
+        config_dict = {
+            "library_path": str(self.library_path),
+            "orbit_config": self.orbit_config_dict,
+            "wombat_config": wombat_config_dict,
+            "floris_config": self.floris_config_dict,
+            "weather_profile": self.weather_profile,
+            "orbit_weather_cols": self.orbit_weather_cols,
+            "floris_windspeed": self.floris_windspeed,
+            "floris_wind_direction": self.floris_wind_direction,
+            "floris_x_col": self.floris_x_col,
+            "floris_y_col": self.floris_y_col,
+        }
+        return config_dict
+
+    def save_config(self, config_file: str | Path) -> None:
+        """Saves a copy of the Project configuration settings to recreate the results of
+        the current settings.
+
+        Args:
+            config_file (str | Path): The name to use for saving to a YAML configuration
+                file.
+        """
+        config_dict = self.config_dict
+        with open(self.library_path / "project/config" / config_file, "w") as f:
+            yaml.safe_dump(config_dict, f, default_flow_style=False)
+
     def setup_orbit(self) -> None:
         """Creates the ORBIT Project Manager object and readies it for running an analysis."""
         if self.orbit_config is None:
@@ -295,8 +376,10 @@ class Project(FromDictMixin):
             return
 
         if isinstance(self.orbit_config, (str, Path)):
-            self.orbit_config = self.library_path / "project/config" / self.orbit_config
-        self.orbit_config_dict = load_config(self.orbit_config)
+            orbit_config = self.library_path / "project/config" / self.orbit_config
+            self.orbit_config_dict = load_config(orbit_config)
+        else:
+            self.orbit_config_dict = self.orbit_config
 
         assert isinstance(self.weather, pd.DataFrame)  # mypy helper
         self.orbit = ProjectManager(
@@ -312,10 +395,13 @@ class Project(FromDictMixin):
             return
 
         if isinstance(self.wombat_config, (str, Path)):
-            self.wombat_config = (
+            wombat_config = (
                 self.library_path / "project/config" / self.wombat_config  # type: ignore
             )
-        self.wombat = Simulation.from_config(self.wombat_config)
+        else:
+            wombat_config = self.wombat_config  # type: ignore
+        self.wombat = Simulation.from_config(wombat_config)
+        self.wombat_config_dict = attrs.asdict(self.wombat.config)
         self.operations_start = self.wombat.env.weather.index.min()
         self.operations_end = self.wombat.env.weather.index.max()
         self.operations_years = self.operations_end.year - self.operations_start.year
@@ -329,10 +415,12 @@ class Project(FromDictMixin):
             return
 
         if isinstance(self.floris_config, (str, Path)):
-            self.floris_config = load_yaml(
+            self.floris_config_dict = load_yaml(
                 self.library_path / "project/config", self.floris_config
             )
-        self.floris = FlorisInterface(configuration=self.floris_config)
+        else:
+            self.floris_config_dict = self.floris_config
+        self.floris = FlorisInterface(configuration=self.floris_config_dict)
 
     def connect_floris_to_turbines(
         self, x_col: str = "floris_x", y_col: str = "floris_y"
@@ -652,13 +740,13 @@ class Project(FromDictMixin):
         x, y = layout.values.T
         self.floris.reinitialize(layout_x=x, layout_y=y)
         if update_config:
-            assert isinstance(self.floris_config, dict)  # mypy helper
-            self.floris_config["farm"]["layout_x"] = x.tolist()
-            self.floris_config["farm"]["layout_y"] = y.tolist()
+            assert isinstance(self.floris_config_dict, dict)  # mypy helper
+            self.floris_config_dict["farm"]["layout_x"] = x.tolist()
+            self.floris_config_dict["farm"]["layout_y"] = y.tolist()
             if config_fname is not None:
                 full_path = self.library_path / "project/config" / config_fname
                 with open(full_path, "w") as f:
-                    yaml.dump(self.floris_config, f, default_flow_style=False)
+                    yaml.dump(self.floris_config_dict, f, default_flow_style=False)
                     print(f"Updated FLORIS configuration saved to: {full_path}.")
 
     # Results methods
