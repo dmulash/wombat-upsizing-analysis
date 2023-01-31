@@ -47,7 +47,7 @@ design_phases:
 - OffshoreSubstationDesign
 install_phases:
   ArrayCableInstallation: 0
-  ExportCableInstallation: 2000
+  ExportCableInstallation: 1998
   MonopileInstallation: !!python/tuple
   - ScourProtectionInstallation
   - 0.5
