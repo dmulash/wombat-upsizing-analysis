@@ -24,8 +24,8 @@ from ORBIT import ProjectManager, load_config
 from floris.tools import FlorisInterface
 from floris.tools.wind_rose import WindRose
 
+from whale.core import load_yaml
 from wombat.core import Simulation
-from wombat.core.library import load_yaml
 from wombat.core.data_classes import FromDictMixin
 
 
@@ -48,30 +48,6 @@ def resolve_path(value: str | Path) -> Path:
 
     raise TypeError(
         f"The input path: {value}, must be of type `str` or `pathlib.Path`."
-    )
-
-
-def read_config(value: str | Path | dict) -> dict:
-    """Reads the configuration file from a YAML to a dictionary.
-
-    Args:
-        value (str | Path | dict): The path to, or a dictionary of the configuration.
-
-    Raises:
-        TypeError: Raised if not a valid file name or already a dictionary.
-
-    Returns:
-        dict: The configuration dictionary.
-    """
-    if isinstance(value, dict):
-        return value
-    if isinstance(value, (str, Path)):
-        value = load_yaml(resolve_path(value))
-    raise TypeError(
-        (
-            f"The input configuration is not a valid format: {type(value)}. Inputs must"
-            " be of type `str`, `Path`, or `dict`."
-        )
     )
 
 
@@ -367,7 +343,7 @@ class Project(FromDictMixin):
         """
         config_dict = self.config_dict
         with open(self.library_path / "project/config" / config_file, "w") as f:
-            yaml.safe_dump(config_dict, f, default_flow_style=False)
+            yaml.dump(config_dict, f, default_flow_style=False)
 
     def setup_orbit(self) -> None:
         """Creates the ORBIT Project Manager object and readies it for running an analysis."""
