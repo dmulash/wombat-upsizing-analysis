@@ -240,6 +240,7 @@ class Project(FromDictMixin):
     floris: FlorisInterface = field(init=False)
     wind_rose: WindRose = field(init=False)
     floris_turbine_order: list[str] = field(init=False, factory=list)
+    floris_results_type: str = field(init=False)
     aep_mwh: float = field(init=False)
     turbine_aep_mwh: pd.DataFrame = field(init=False)
     _fi_dict: dict[tuple[int, int], FlorisInterface] = field(init=False, factory=dict)
@@ -254,6 +255,8 @@ class Project(FromDictMixin):
         self.setup_orbit()
         self.setup_wombat()
         self.setup_floris()
+        if self.wombat_config is not None:
+            self.connect_floris_to_turbines()
 
     @library_path.validator  # type: ignore
     def library_exists(self, attribute: attrs.Attribute, value: Path) -> None:
@@ -366,7 +369,7 @@ class Project(FromDictMixin):
 
     def setup_wombat(self) -> None:
         """Creates the WOMBAT Simulation object and readies it for running an analysis."""
-        if self.orbit_config is None:
+        if self.wombat_config is None:
             print("No WOMBAT configuration provided, skipping model setup.")
             return
 
@@ -638,6 +641,7 @@ class Project(FromDictMixin):
             run_kwargs.setdefault("no_wake", False)
 
             self.run_wind_rose_aep(full_wind_rose=full_wind_rose, run_kwargs=run_kwargs)
+            self.floris_results_type = "wind_rose"
 
         elif which == "time_series":
             parallel_args, zero_power_filter = self.preprocess_monthly_floris(
@@ -665,6 +669,7 @@ class Project(FromDictMixin):
 
             n_years = self.turbine_aep_mwh.index.year.unique().size
             self.aep_mwh = self.turbine_aep_mwh.values.sum() / n_years
+            self.floris_results_type = "time_series"
         else:
             raise ValueError(
                 f"`which` must be one of: 'wind_rose' or 'time_series', not: {which}"
@@ -895,7 +900,9 @@ class Project(FromDictMixin):
             capex["CapEx per MW"] = capex / self.orbit.capacity
         return capex
 
-    def power_production(self, frequency: str = "month-year") -> pd.DataFrame:
+    def energy_production(
+        self, frequency: str = "project", by: str = "windfarm"
+    ) -> pd.DataFrame:
         """Computes the monthly power production for the simulation by extrapolating
         the AEP if FLORIS results were computed by a wind rose, or using the time series
         results, and multiplying it by the WOMBAT monthly
@@ -904,7 +911,12 @@ class Project(FromDictMixin):
         Args:
             frequency : str, optional
                 One of "project" (project total), "annual" (annual total), or
-                "month-year" (monthly totals for each year). Defaults to "month-year".
+                "month-year" (monthly totals for each year). For FLORIS analyses run on
+                a wind rose basis, only "project" is available, and for time-series
+                based results, all options are available. Defaults to "project".
+            by : str, optional
+                One of "windfarm" (project level) or "turbine" (turbine level) to
+                indicate what level to calculate the
 
         Raises:
             ValueError
@@ -919,50 +931,54 @@ class Project(FromDictMixin):
         if frequency not in opts:
             raise ValueError(f"`frequency` must be one of {opts}.")  # type: ignore
 
-        n_years = self.wombat.env.weather.index.year.unique().size
-        # Extrapolate the AEP to monthly outputs if only the AEP is calculated
-        if not hasattr(self, "turbine_aep_mwh"):
-            availability = self.wombat.metrics.production_based_availability(
-                frequency=frequency, by="windfarm"
-            ).rename(columns={"windfarm": "Energy Production (GWh)"})
-
-            # Calculate the power, in GWh, with the assumption that data is annualized,
-            # then modify based on further dis/aggregation
-            power_gwh = availability * self.aep_mwh / 1000
-            if frequency == "project":
-                power_gwh *= n_years
-            elif frequency == "month-year":
-                power_gwh /= 12
-            return power_gwh
-
-        # Use the turbine powers x availability to gather the monthly production
-        availability = self.wombat.metrics.production_based_availability(
-            frequency="month-year", by="turbine"
-        )
-        power_gwh = self.turbine_aep_mwh / 1000
-        power_gwh = (
-            power_gwh.assign(year=power_gwh.index.year, month=power_gwh.index.month)
-            .groupby(["year", "month"])
-            .sum()
-            .loc[availability.index]
-        ) * availability.loc[:, self.floris_turbine_order]
-
-        # Aggregate to the desired frequency level
-        if frequency == "month-year":
-            power_gwh = power_gwh.sum(axis=1).to_frame()
-        elif frequency == "annual":
+        # For the wind rose outputs, only consider project-level availability because
+        # wind rose AEP is a long-term estimation of energy production
+        if self.floris_results_type == "wind_rose":
             power_gwh = (
-                power_gwh.reset_index(drop=False)
-                .groupby("year")
-                .sum()
-                .drop(columns=["month"])
-                .sum(axis=1)
-                .to_frame()
+                self.wombat.metrics.production_based_availability(
+                    frequency="project", by="turbine"
+                ).loc[:, self.floris_turbine_order]
+                * self.turbine_aep_mwh
             )
-        elif frequency == "project":
-            power_gwh = pd.DataFrame([power_gwh.reset_index(drop=False).values.sum()])
 
-        return power_gwh.rename(columns={0: "Energy Production (GWh)"})
+            if by == "windfarm":
+                return (
+                    power_gwh.sum(axis=1)
+                    .rename({0: "Energy Production (GWh)"})
+                    .to_frame("wind_farm")
+                )
+            return power_gwh.rename(index={0: "Energy Production (GWh)"})
+
+        if self.floris_results_type == "time_series":
+            availability = self.wombat.metrics.production_based_availability(
+                frequency="month-year", by="turbine"
+            )
+            power_gwh = self.turbine_aep_mwh / 1000
+            power_gwh = (
+                power_gwh.assign(year=power_gwh.index.year, month=power_gwh.index.month)
+                .groupby(["year", "month"])
+                .sum()
+                .loc[availability.index]
+            ) * availability.loc[:, self.floris_turbine_order]
+
+            if by == "windfarm":
+                power_gwh = power_gwh.sum(axis=1).to_frame("Energy Production (GWh)")
+
+            # Aggregate to the desired frequency level
+            if frequency == "month-year":
+                return power_gwh
+            elif frequency == "annual":
+                return (
+                    power_gwh.reset_index(drop=False)
+                    .groupby("year")
+                    .sum()
+                    .drop(columns=["month"])
+                )
+            elif frequency == "project":
+                return pd.DataFrame(
+                    [power_gwh.reset_index(drop=False).values.sum()],
+                    columns=["Energy Production (GWh)"],
+                )
 
     def npv(
         self, frequency: str, discount_rate: float = 0.025, offtake_price: float = 80
