@@ -241,7 +241,7 @@ class Project(FromDictMixin):
     wind_rose: WindRose = field(init=False)
     floris_turbine_order: list[str] = field(init=False, factory=list)
     aep_mwh: float = field(init=False)
-    turbine_powers: pd.DataFrame = field(init=False)
+    turbine_aep_mwh: pd.DataFrame = field(init=False)
     _fi_dict: dict[tuple[int, int], FlorisInterface] = field(init=False, factory=dict)
     operations_start: pd.Timestamp = field(init=False)
     operations_end: pd.Timestamp = field(init=False)
@@ -577,7 +577,7 @@ class Project(FromDictMixin):
             self.floris.reinitialize(wind_speeds=ws, wind_directions=wd)
 
         self.aep_mwh = np.sum(freq * farm_power) * 8760 / 1e6
-        self.turbine_powers = (
+        self.turbine_aep_mwh = (
             np.sum(freq.reshape((*freq.shape, 1)) * turbine_power, axis=(0, 1))
             * 8760
             / 1e6
@@ -646,16 +646,16 @@ class Project(FromDictMixin):
             fi_dict, turbine_powers = run_parallel_floris(parallel_args, nodes)
 
             self._fi_dict = fi_dict
-            self.turbine_powers = turbine_powers
+            self.turbine_aep_mwh = turbine_powers
             self.connect_floris_to_turbines(
                 x_col=self.floris_x_col, y_col=self.floris_y_col
             )
-            self.turbine_powers.columns = self.floris_turbine_order
-            self.turbine_powers = (
-                self.turbine_powers.where(
+            self.turbine_aep_mwh.columns = self.floris_turbine_order
+            self.turbine_aep_mwh = (
+                self.turbine_aep_mwh.where(
                     np.repeat(
                         zero_power_filter.reshape(-1, 1),
-                        self.turbine_powers.shape[1],
+                        self.turbine_aep_mwh.shape[1],
                         axis=1,
                     ),
                     0.0,
@@ -663,8 +663,8 @@ class Project(FromDictMixin):
                 / 1e6
             )
 
-            n_years = self.turbine_powers.index.year.unique().size
-            self.aep_mwh = self.turbine_powers.values.sum() / n_years
+            n_years = self.turbine_aep_mwh.index.year.unique().size
+            self.aep_mwh = self.turbine_aep_mwh.values.sum() / n_years
         else:
             raise ValueError(
                 f"`which` must be one of: 'wind_rose' or 'time_series', not: {which}"
@@ -921,7 +921,7 @@ class Project(FromDictMixin):
 
         n_years = self.wombat.env.weather.index.year.unique().size
         # Extrapolate the AEP to monthly outputs if only the AEP is calculated
-        if not hasattr(self, "turbine_powers"):
+        if not hasattr(self, "turbine_aep_mwh"):
             availability = self.wombat.metrics.production_based_availability(
                 frequency=frequency, by="windfarm"
             ).rename(columns={"windfarm": "Energy Production (GWh)"})
@@ -939,7 +939,7 @@ class Project(FromDictMixin):
         availability = self.wombat.metrics.production_based_availability(
             frequency="month-year", by="turbine"
         )
-        power_gwh = self.turbine_powers / 1000
+        power_gwh = self.turbine_aep_mwh / 1000
         power_gwh = (
             power_gwh.assign(year=power_gwh.index.year, month=power_gwh.index.month)
             .groupby(["year", "month"])
