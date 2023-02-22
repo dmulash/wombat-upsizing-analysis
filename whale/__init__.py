@@ -1,4 +1,4 @@
-"""WHaLE initialization"""
+"""WHaLE initialization."""
 
 __version__ = "0.3"
 
