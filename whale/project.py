@@ -912,8 +912,9 @@ class Project(FromDictMixin):
             frequency : str, optional
                 One of "project" (project total), "annual" (annual total), or
                 "month-year" (monthly totals for each year). For FLORIS analyses run on
-                a wind rose basis, only "project" is available, and for time-series
-                based results, all options are available. Defaults to "project".
+                a wind rose basis, only "project" and "annual" is available, and for
+                time-series based results, all options are available. Defaults to
+                "project".
             by : str, optional
                 One of "windfarm" (project level) or "turbine" (turbine level) to
                 indicate what level to calculate the
@@ -934,12 +935,20 @@ class Project(FromDictMixin):
         # For the wind rose outputs, only consider project-level availability because
         # wind rose AEP is a long-term estimation of energy production
         if self.floris_results_type == "wind_rose":
+            if frequency not in ("project", "annual"):
+                raise ValueError(
+                    "Wind rose analyses only allow for 'annual' and 'project' level"
+                    " energy production."
+                )
             power_gwh = (
                 self.wombat.metrics.production_based_availability(
-                    frequency="project", by="turbine"
+                    frequency="annual", by="turbine"
                 ).loc[:, self.floris_turbine_order]
                 * self.turbine_aep_mwh
             )
+
+            if frequency == "project":
+                power_gwh = power_gwh.sum(axis=0).to_frame("Energy Production (GWh)")
 
             if by == "windfarm":
                 return (
@@ -1009,14 +1018,28 @@ class Project(FromDictMixin):
         if frequency not in opts:
             raise ValueError(f"`frequency` must be one of {opts}.")  # type: ignore
 
-        # Gather the OpEx, and revenues
-        expenditures = self.wombat.metrics.opex("month-year")
-        production = self.power_production("month-year")
-        revenue: pd.DataFrame = production / 1000 * offtake_price  # MWh
+        if self.floris_results_type == "wind_rose":
+            if frequency not in ("project", "annual"):
+                raise ValueError(
+                    "Wind rose analyses only allow for 'annual' and 'project' level"
+                    " energy production."
+                )
+
+            # Gather the OpEx, and revenues
+            expenditures = self.wombat.metrics.opex("annual")
+            production = self.energy_production("annual")
+            revenue: pd.DataFrame = production / 1000 * offtake_price  # MWh
+
+        else:
+            # Gather the OpEx, and revenues
+            expenditures = self.wombat.metrics.opex("month-year")
+            production = self.energy_production("month-year")
+            revenue = production / 1000 * offtake_price  # MWh
 
         # Instantiate the NPV with the required calculated data and compute the result
+        # change the column names according to the analysis type used
         npv = revenue.join(expenditures).rename(
-            columns={"Energy Production (GWh)": "revenue"}
+            columns={"Energy Production (GWh)": "revenue", "wind_farm": "revenue"}
         )
         N = npv.shape[0]
         npv.loc[:, "discount"] = np.full(N, 1 + discount_rate) ** np.arange(N)
