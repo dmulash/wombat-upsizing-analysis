@@ -34,7 +34,7 @@ class CustomSafeLoader(yaml.SafeLoader):
     """
 
     def construct_python_tuple(self, node):
-        """Loads a YAML object to a Pytho Tuple.s"""
+        """Loads a YAML object to a Pytho Tuple.s."""
         return tuple(self.construct_sequence(node))
 
 
@@ -74,4 +74,4 @@ def load_yaml(path: str | Path, fname: str | Path) -> Any:
         Whatever content is in the YAML file.
     """
     path = Path(path).resolve()
-    return yaml.load(open(path / fname, "r"), Loader=custom_loader)
+    return yaml.load(open(path / fname), Loader=custom_loader)

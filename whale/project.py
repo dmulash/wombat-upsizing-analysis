@@ -35,10 +35,13 @@ def resolve_path(value: str | Path) -> Path:
     Args:
         value (str | Path): A string or Path to a configuration library.
 
-    Raises:
-        TypeError: Raised if the input to :py:attr:`value` is not either a ``str`` or ``pathlib.Path``.
+    Raises
+    ------
+        TypeError: Raised if the input to :py:attr:`value` is not either a ``str`` or
+            ``pathlib.Path``.
 
-    Returns:
+    Returns
+    -------
         Path: The resolved Path object versio of the input library path.
     """
     if isinstance(value, str):
@@ -46,9 +49,7 @@ def resolve_path(value: str | Path) -> Path:
     if isinstance(value, Path):
         return value.resolve()
 
-    raise TypeError(
-        f"The input path: {value}, must be of type `str` or `pathlib.Path`."
-    )
+    raise TypeError(f"The input path: {value}, must be of type `str` or `pathlib.Path`.")
 
 
 def load_weather(value: str | Path | pd.DataFrame) -> pd.DataFrame:
@@ -61,7 +62,8 @@ def load_weather(value: str | Path | pd.DataFrame) -> pd.DataFrame:
             The input file name and path, or a ``pandas.DataFrame`` (gets passed back
             without modification).
 
-    Returns:
+    Returns
+    -------
         pd.DataFrame
             The full weather profile with the column "datetime" as a ``pandas.DatetimeIndex``.
     """
@@ -96,7 +98,7 @@ def run_chunked_floris(
     args: tuple,
 ) -> tuple[tuple[int, int], FlorisInterface, pd.DataFrame]:
     """Runs ``fi.calculate_wake()`` over a chunk of a larger time series analysis and
-    returns the individual turbine powers for each corresponding time
+    returns the individual turbine powers for each corresponding time.
 
     Args:
         fi : FlorisInterface
@@ -111,7 +113,8 @@ def run_chunked_floris(
         run_kwargs : dict, optional
             Any additional calculate_wake keyword arguments. Defaults to {}.
 
-    Returns:
+    Returns
+    -------
         tuple[tuple[int, int], FlorisInterface, pd.DataFrame]
             The ``chunk_id``, a reinitialized ``fi`` using the appropriate wind
             parameters that can be used for further post-processing, and the
@@ -145,7 +148,8 @@ def run_parallel_floris(
             The number of nodes to parallelize over. If -1, then it will use the floor
             of 80% of the available CPUs on the computer. Defaults to -1.
 
-    Returns:
+    Returns
+    -------
         tuple[dict[tuple[int, int], FlorisInterface], pd.DataFrame]
             A dictionary of the ``chunk_id`` and ``FlorisInterface`` object, and the
             full turbine power dataframe (without renamed columns).
@@ -249,6 +253,7 @@ class Project(FromDictMixin):
     operations_years: int = field(init=False)
 
     def __attrs_post_init__(self) -> None:
+        """Post-initialization hook to complete the setup."""
         if isinstance(self.weather_profile, str | Path):
             weather_path = self.library_path / "weather" / self.weather_profile
             self.weather = load_weather(weather_path)
@@ -266,18 +271,15 @@ class Project(FromDictMixin):
             attribute (attrs.Attribute): The attrs Attribute information/metadata/configuration.
             value (str | Path): The user input.
 
-        Raises:
+        Raises
+        ------
             FileNotFoundError: Raised if :py:attr:`value` does not exist.
             ValueError: Raised if the :py:attr:`value` exists, but is not a directory.
         """
         if not value.exists():
-            raise FileNotFoundError(
-                f"The input path to {attribute.name} cannot be found: {value}"
-            )
+            raise FileNotFoundError(f"The input path to {attribute.name} cannot be found: {value}")
         if not value.is_dir():
-            raise ValueError(
-                f"The input path to {attribute.name}: {value} is not a directory."
-            )
+            raise ValueError(f"The input path to {attribute.name}: {value} is not a directory.")
 
     @classmethod
     def from_file(cls, library_path: str | Path, config_file: str | Path) -> Project:
@@ -290,11 +292,13 @@ class Project(FromDictMixin):
                 object from, which should be located at:
                 ``library_path`` / project / config / ``config_file``.
 
-        Raises:
+        Raises
+        ------
             FileExistsError: Raised if :py:attr:`library_path` is not a valid directory.
             ValueError: Raised if :py:attr:`config_file` is not a JSON or YAML file.
 
-        Returns:
+        Returns
+        -------
             Project: An initialized Project object.
         """
         library_path = Path(library_path).resolve()
@@ -302,7 +306,7 @@ class Project(FromDictMixin):
             raise FileExistsError(f"{library_path} cannot be found.")
         config_file = Path(config_file)
         if config_file.suffix == ".json":
-            with open(library_path / "project/config" / config_file, "r") as f:
+            with open(library_path / "project/config" / config_file) as f:
                 config_dict = dict(json.load(f))
         if config_file.suffix in (".yml", ".yaml"):
             config_dict = load_yaml(library_path / "project/config", config_file)
@@ -317,7 +321,8 @@ class Project(FromDictMixin):
         """Generates a configuration dictionary that can be saved to a new file for later
         re/use.
 
-        Returns:
+        Returns
+        -------
             dict: YAML-safe dictionary of a Project-loadable configuration.
         """
         wombat_config_dict = deepcopy(self.wombat_config_dict)
@@ -401,10 +406,8 @@ class Project(FromDictMixin):
             self.floris_config_dict = self.floris_config
         self.floris = FlorisInterface(configuration=self.floris_config_dict)
 
-    def connect_floris_to_turbines(
-        self, x_col: str = "floris_x", y_col: str = "floris_y"
-    ):
-        """Generates ``floris_turbine_order`` from the WOMBAT ``Windfarm.layout_df``"""
+    def connect_floris_to_turbines(self, x_col: str = "floris_x", y_col: str = "floris_y"):
+        """Generates ``floris_turbine_order`` from the WOMBAT ``Windfarm.layout_df``."""
         layout = self.wombat.windfarm.layout_df
         self.floris_turbine_order = [
             layout.loc[(layout[x_col] == x) & (layout[y_col] == y), "id"].values[0]
@@ -436,8 +439,18 @@ class Project(FromDictMixin):
             cut_out_wind_speed : float, optional
                 The wind speed, in m/s, at which a turbine will stop producing power.
 
-        Returns:
-            tuple[list[tuple[FlorisInterface, pd.DataFrame, tuple[int, int], dict, dict]], np.ndarray]
+        Returns
+        -------
+            tuple[
+                list[tuple[
+                    FlorisInterface,
+                    pd.DataFrame,
+                    tuple[int, int],
+                    dict,
+                    dict
+                ]],
+                np.ndarray
+            ]
                 A list of tuples of:
                  - a copy of the ``FlorisInterface`` object
                  - tuple of year and month
@@ -525,9 +538,7 @@ class Project(FromDictMixin):
         """
         if full_wind_rose:
             assert isinstance(self.weather, pd.DataFrame)  # mypy helper
-            weather = self.weather.loc[
-                :, [self.floris_wind_direction, self.floris_windspeed]
-            ]
+            weather = self.weather.loc[:, [self.floris_wind_direction, self.floris_windspeed]]
         else:
             start = self.wombat.env.weather.index.min()
             stop = self.wombat.env.weather.index.max()
@@ -581,9 +592,7 @@ class Project(FromDictMixin):
 
         self.aep_mwh = np.sum(freq * farm_power) * 8760 / 1e6
         self.turbine_aep_mwh = (
-            np.sum(freq.reshape((*freq.shape, 1)) * turbine_power, axis=(0, 1))
-            * 8760
-            / 1e6
+            np.sum(freq.reshape((*freq.shape, 1)) * turbine_power, axis=(0, 1)) * 8760 / 1e6
         )
 
     def run_floris(
@@ -626,7 +635,8 @@ class Project(FromDictMixin):
                 The number of nodes to parallelize over. If -1, then it will use the
                 floor of 80% of the available CPUs on the computer. Defaults to -1.
 
-        Raises:
+        Raises
+        ------
             ValueError: _description_
         """
         if which == "wind_rose":
@@ -651,9 +661,7 @@ class Project(FromDictMixin):
 
             self._fi_dict = fi_dict
             self.turbine_aep_mwh = turbine_powers
-            self.connect_floris_to_turbines(
-                x_col=self.floris_x_col, y_col=self.floris_y_col
-            )
+            self.connect_floris_to_turbines(x_col=self.floris_x_col, y_col=self.floris_y_col)
             self.turbine_aep_mwh.columns = self.floris_turbine_order
             self.turbine_aep_mwh = (
                 self.turbine_aep_mwh.where(
@@ -671,9 +679,7 @@ class Project(FromDictMixin):
             self.aep_mwh = self.turbine_aep_mwh.values.sum() / n_years
             self.floris_results_type = "time_series"
         else:
-            raise ValueError(
-                f"`which` must be one of: 'wind_rose' or 'time_series', not: {which}"
-            )
+            raise ValueError(f"`which` must be one of: 'wind_rose' or 'time_series', not: {which}")
 
     def run(
         self,
@@ -720,7 +726,8 @@ class Project(FromDictMixin):
                 The number of nodes to parallelize over. If -1, then it will use the
                 floor of 80% of the available CPUs on the computer. Defaults to -1.
 
-        Raises:
+        Raises
+        ------
             ValueError
                 Raised if ``which_floris`` is not one of "wind_rose" or "time_series".
         """
@@ -732,9 +739,7 @@ class Project(FromDictMixin):
         if which_floris == "wind_rose" and cut_in_wind_speed is not None:
             floris_reinitialize_kwargs.update({"cut_in_wind_speed": cut_in_wind_speed})
         if which_floris == "wind_rose" and cut_out_wind_speed is not None:
-            floris_reinitialize_kwargs.update(
-                {"cut_out_wind_speed": cut_out_wind_speed}
-            )
+            floris_reinitialize_kwargs.update({"cut_out_wind_speed": cut_out_wind_speed})
 
         if "orbit" not in skip:
             self.orbit.run()
@@ -844,7 +849,8 @@ class Project(FromDictMixin):
                 Whether or not to return the figure and axes objects for further editing
                 and/or saving. Defaults to False.
 
-        Returns:
+        Returns
+        -------
             None | tuple[plt.figure, plt.axes]: _description_
         """
         figure_kwargs.setdefault("figsize", (14, 12))
@@ -884,7 +890,8 @@ class Project(FromDictMixin):
                 the sum of the BOS, turbine, project, and soft CapEx categories.
                 Defaults to False.
 
-        Returns:
+        Returns
+        -------
             pd.DataFrame
                 Project CapEx in the base currency or normalized by project capacity, in MW.
         """
@@ -900,9 +907,7 @@ class Project(FromDictMixin):
             capex["CapEx per MW"] = capex / self.orbit.capacity
         return capex
 
-    def energy_production(
-        self, frequency: str = "project", by: str = "windfarm"
-    ) -> pd.DataFrame:
+    def energy_production(self, frequency: str = "project", by: str = "windfarm") -> pd.DataFrame:
         """Computes the monthly power production for the simulation by extrapolating
         the AEP if FLORIS results were computed by a wind rose, or using the time series
         results, and multiplying it by the WOMBAT monthly
@@ -919,11 +924,13 @@ class Project(FromDictMixin):
                 One of "windfarm" (project level) or "turbine" (turbine level) to
                 indicate what level to calculate the
 
-        Raises:
+        Raises
+        ------
             ValueError
                 Raised if ``frequency`` is not one of: "project", "annual", "month-year".
 
-        Returns:
+        Returns
+        -------
             pd.DataFrame
                 The wind farm-level power prodcution for the desired ``frequency``.
         """
@@ -978,10 +985,7 @@ class Project(FromDictMixin):
                 return power_gwh
             elif frequency == "annual":
                 return (
-                    power_gwh.reset_index(drop=False)
-                    .groupby("year")
-                    .sum()
-                    .drop(columns=["month"])
+                    power_gwh.reset_index(drop=False).groupby("year").sum().drop(columns=["month"])
                 )
             elif frequency == "project":
                 return pd.DataFrame(
