@@ -21,12 +21,12 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from attrs import field, define
 from ORBIT import ProjectManager, load_config
+from wombat.core import Simulation
 from floris.tools import FlorisInterface
 from floris.tools.wind_rose import WindRose
+from wombat.core.data_classes import FromDictMixin
 
 from whale.core import load_yaml
-from wombat.core import Simulation
-from wombat.core.data_classes import FromDictMixin
 
 
 def resolve_path(value: str | Path) -> Path:
@@ -414,11 +414,19 @@ class Project(FromDictMixin):
             for x, y in zip(self.floris.layout_x, self.floris.layout_y)
         ]
 
-    def connect_orbit_cable_lengths(self):
+    def connect_orbit_cable_lengths(self, save_results: bool = True) -> None:
         """Runs the ORBIT design phases, so that the array system has computed the necessary cable
         length and distance measures, then attaches the cable length calculations back to the
         layout file, saves the results to the layout files, and reloads both ORBIT and WOMBAT with
         this data.
+
+        Parameters
+        ----------
+        save_results : bool, optional
+            Save the resulting, updated layout table to both
+            ``library_path``/project/plant/``wombat_config_dict["layout"]`` and
+            ``library_path``/cables/``wombat_config_dict["layout"]`` for WOMBAT and ORBIT
+            compatibility, respectively.
         """
         # Run the design phases
         self.orbit.run_all_design_phases()
@@ -449,7 +457,19 @@ class Project(FromDictMixin):
                 locations.loc[string_ix, "cable_length"] = cable_lengths[string + i, cable_order]
             i = string + 1
 
-        # TODO: Combine locations.cable_length with the ORBIT/WOMBAT layout files
+        # Add the cable length values to the layout file
+        id_ix = locations.id.values
+        self.wombat.windfarm.layout_df.loc[
+            self.wombat.windfarm.layout_df.id == id_ix, "cable_length"
+        ] = locations.cable_length
+
+        # Save the updated data to the original layout locations
+        if save_results:
+            layout_file_name = self.wombat_config_dict["layout"]
+            self.wombat.windfarm.layout_df.to_csv(
+                self.library_path / "project/plant" / layout_file_name
+            )
+            self.wombat.windfarm.layout_df.to_csv(self.library_path / "cables" / layout_file_name)
 
     def preprocess_monthly_floris(
         self,
