@@ -414,6 +414,43 @@ class Project(FromDictMixin):
             for x, y in zip(self.floris.layout_x, self.floris.layout_y)
         ]
 
+    def connect_orbit_cable_lengths(self):
+        """Runs the ORBIT design phases, so that the array system has computed the necessary cable
+        length and distance measures, then attaches the cable length calculations back to the
+        layout file, saves the results to the layout files, and reloads both ORBIT and WOMBAT with
+        this data.
+        """
+        # Run the design phases
+        self.orbit.run_all_design_phases()
+
+        # Check for the array cable system design data
+        if "ArraySystemDesign" in self.orbit._phases:
+            array = self.orbit._phases["ArraySystemDesign"]
+        elif "CustomArraySystemDesign" in self.orbit._phases:
+            array = self.orbit._phases["CustomArraySystemDesign"]
+        else:
+            raise RuntimeError(
+                "None of `ArraySystemDesign` or `CustomArraySystemDesign` were included in the"
+                "ORBIT configuration"
+            )
+        locations = array.location_data.copy()
+        cable_lengths = array.sections_cable_lengths.copy()
+
+        # Loop through the substations, then strings to combine the calculated cable lengths with
+        # the appropriate turbines, according to the turbine order on each string
+        i = 0
+        for oss in locations.substation_id.unique():
+            oss_ix = locations.substation_id == oss
+            oss_layout = locations.loc[oss_ix]
+            string_id = np.sort(oss_layout.string.unique())
+            for string in string_id:
+                string_ix = oss_ix & (locations.string == string)
+                cable_order = locations.loc[string_ix, "order"].values
+                locations.loc[string_ix, "cable_length"] = cable_lengths[string + i, cable_order]
+            i = string + 1
+
+        # TODO: Combine locations.cable_length with the ORBIT/WOMBAT layout files
+
     def preprocess_monthly_floris(
         self,
         reinitialize_kwargs: dict = {},
