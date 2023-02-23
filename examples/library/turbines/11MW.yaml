@@ -1,20 +1,20 @@
 blade:
-  deck_space: 346      # m^2 
+  deck_space: 346      # m^2
   length: 102          # m
   type: Blade
-  mass: 54             # t 
+  mass: 54             # t
 hub_height: 128        # m
 nacelle:
-  deck_space: 196      # m^2 
+  deck_space: 196      # m^2
   type: Nacelle
-  mass: 550            # t  
+  mass: 550            # t
 name: 11MW SG Turbine
 rated_windspeed: 11    # m/s
-rotor_diameter: 200    # m 
+rotor_diameter: 200    # m
 tower:
-  deck_space: 44     # m^2 
-  sections: 2          # n 
+  deck_space: 44     # m^2
+  sections: 2          # n
   type: Tower
   length: 128
-  mass: 366            # t 
+  mass: 366            # t
 turbine_rating: 11     # MW

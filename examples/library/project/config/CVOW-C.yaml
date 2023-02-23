@@ -57,7 +57,7 @@ install_phases:
   TurbineInstallation: !!python/tuple
   - MonopileInstallation
   - 0.1
-  
+
 #install_phases:
   #ArrayCableInstallation: 0
   #ExportCableInstallation: 0
