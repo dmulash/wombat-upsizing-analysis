@@ -1,5 +1,8 @@
+"""Installation settings."""
+
 import codecs
 from pathlib import Path
+
 from setuptools import setup, find_packages
 
 
@@ -20,7 +23,7 @@ def get_version(relative_path):
         raise RuntimeError("Unable to find version string.")
 
 
-with open("README.rst", "r") as fh:
+with open("README.rst") as fh:
     long_description = fh.read()
 
 
@@ -29,7 +32,15 @@ DESCRIPTION = "Windfarm Heuristics and Lifecycle Estimator"
 
 
 # Installation reuqirements
-REQUIRED = ["orbit-nrel>=1.0.7", "wombat>=0.6", "floris>=3.2", "attrs", "matplotlib>=3.6", "pyyaml"]
+REQUIRED = [
+    "orbit-nrel>=1.0.7",
+    "wombat>=0.6",
+    "floris>=3.2",
+    "attrs",
+    "matplotlib>=3.6",
+    "pyyaml",
+    "tqdm",
+]
 TEST = ["pytest", "pytest-xdist", "pytest-cov"]
 DEV = ["pre-commit", "black", "mypy", "flake8", "flake8-docstrings", "isort", "pylint"] + TEST
 DOCS = ["Sphinx", "pydata-sphinx-theme", "myst-nb", "myst-parser", "sphinx-panels"]
