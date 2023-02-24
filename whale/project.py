@@ -21,12 +21,12 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from attrs import field, define
 from ORBIT import ProjectManager, load_config
+from wombat.core import Simulation
 from floris.tools import FlorisInterface
 from floris.tools.wind_rose import WindRose
+from wombat.core.data_classes import FromDictMixin
 
 from whale.core import load_yaml
-from wombat.core import Simulation
-from wombat.core.data_classes import FromDictMixin
 
 
 def resolve_path(value: str | Path) -> Path:
@@ -209,6 +209,9 @@ class Project(FromDictMixin):
         floris_config : str | pathlib.Path | None
             The FLORIS configuration file name or dictionary. If None, will not set up
             the FLORIS simulation component.
+        connect_orbit_array_design : bool, optional
+            If True, the ORBIT array cable lengths will be calculated on initialization
+            and added into the primary layout file.
     """
 
     library_path: Path = field(converter=resolve_path)
@@ -233,6 +236,9 @@ class Project(FromDictMixin):
     floris_wind_direction: str = field(default="wind_direction", converter=str)
     floris_x_col: str = field(default="floris_x", converter=str)
     floris_y_col: str = field(default="floris_y", converter=str)
+    connect_orbit_array_design: bool = field(
+        default=True, validator=attrs.validators.instance_of(bool)
+    )
 
     # Internally created attributes, aka, no user inputs to these
     weather: pd.DataFrame = field(init=False)
@@ -262,6 +268,8 @@ class Project(FromDictMixin):
         self.setup_floris()
         if self.wombat_config is not None:
             self.connect_floris_to_turbines()
+        if self.connect_orbit_array_design:
+            self.connect_orbit_cable_lengths()
 
     @library_path.validator  # type: ignore
     def library_exists(self, attribute: attrs.Attribute, value: Path) -> None:
@@ -413,6 +421,67 @@ class Project(FromDictMixin):
             layout.loc[(layout[x_col] == x) & (layout[y_col] == y), "id"].values[0]
             for x, y in zip(self.floris.layout_x, self.floris.layout_y)
         ]
+
+    def connect_orbit_cable_lengths(self, save_results: bool = True) -> None:
+        """Runs the ORBIT design phases, so that the array system has computed the necessary cable
+        length and distance measures, then attaches the cable length calculations back to the
+        layout file, saves the results to the layout files, and reloads both ORBIT and WOMBAT with
+        this data.
+
+        Parameters
+        ----------
+        save_results : bool, optional
+            Save the resulting, updated layout table to both
+            ``library_path``/project/plant/``wombat_config_dict["layout"]`` and
+            ``library_path``/cables/``wombat_config_dict["layout"]`` for WOMBAT and ORBIT
+            compatibility, respectively.
+        """
+        # Get the correct design phase
+        design_phases = self.orbit_config_dict["design_phases"]
+        if "ArraySystemDesign" in design_phases:
+            name = "ArraySystemDesign"
+        elif "CustomArraySystemDesign" in design_phases:
+            name = "CustomArraySystemDesign"
+        else:
+            raise RuntimeError(
+                "None of `ArraySystemDesign` or `CustomArraySystemDesign` were included in the"
+                "ORBIT configuration"
+            )
+
+        # Run the design phases if not already
+        if name not in self.orbit._phases:
+            self.orbit.run_all_design_phases()
+
+        array = self.orbit._phases[name]
+        locations = array.location_data.copy()
+        cable_lengths = array.sections_cable_lengths.copy()
+
+        # Loop through the substations, then strings to combine the calculated cable lengths with
+        # the appropriate turbines, according to the turbine order on each string
+        i = 0
+        for oss in locations.substation_id.unique():
+            oss_ix = locations.substation_id == oss
+            oss_layout = locations.loc[oss_ix]
+            string_id = np.sort(oss_layout.string.unique())
+            for string in string_id:
+                string_ix = oss_ix & (locations.string == string)
+                cable_order = locations.loc[string_ix, "order"].values
+                locations.loc[string_ix, "cable_length"] = cable_lengths[string + i, cable_order]
+            i = string + 1
+
+        # Add the cable length values to the layout file
+        id_ix = locations.id.values
+        self.wombat.windfarm.layout_df.loc[
+            self.wombat.windfarm.layout_df.id == id_ix, "cable_length"
+        ] = locations.cable_length
+
+        # Save the updated data to the original layout locations
+        if save_results:
+            layout_file_name = self.wombat_config_dict["layout"]
+            self.wombat.windfarm.layout_df.to_csv(
+                self.library_path / "project/plant" / layout_file_name
+            )
+            self.wombat.windfarm.layout_df.to_csv(self.library_path / "cables" / layout_file_name)
 
     def preprocess_monthly_floris(
         self,
@@ -877,6 +946,8 @@ class Project(FromDictMixin):
             return fig, ax
         return None
 
+    # Design and installation related metrics
+
     def capex(self, per_mw: bool = False, breakdown: bool = False) -> pd.DataFrame:
         """Provides a thin wrapper to ORBIT's ``ProjectManager`` CapEx calculations that
         can provide a breakdown of total or normalize it by the project's capacity, in MW.
@@ -906,6 +977,47 @@ class Project(FromDictMixin):
         if per_mw:
             capex["CapEx per MW"] = capex / self.orbit.capacity
         return capex
+
+    def array_system_total_cable_length(self):
+        """Calculates the total length of the cables in the array system, in km.
+
+        Returns
+        -------
+        float
+            Total length, in km, of the array system cables.
+
+        Raises
+        ------
+        ValueError
+            Raised if neither ``ArraySystemDesign`` nor ``CustomArraySystem`` design
+            were created in ORBIT.
+        """
+        if "ArraySystemDesign" in self.orbit._phases:
+            array = self.orbit._phases["ArraySystemDesign"]
+        elif "CustomArraySystemDesign" in self.orbit._phases:
+            array = self.orbit._phases["CustomArraySystemDesign"]
+        else:
+            raise ValueError("No array system design was included in the ORBIT configuration.")
+        return array.total_length
+
+    def export_system_total_cable_length(self):
+        """Calculates the total length of the cables in the export system, in km.
+
+        Returns
+        -------
+        float
+            Total length, in km, of the export system cables.
+
+        Raises
+        ------
+        ValueError
+            Raised if ``ExportSystemDesign`` was not created in ORBIT.
+        """
+        if "ExportSystemDesign" not in self.orbit._phases:
+            raise ValueError("No export system design was included in the ORBIT configuration.")
+        return self.orbit._phases["ExportSystemDesign"].total_length
+
+    # Operational metrics
 
     def energy_production(self, frequency: str = "project", by: str = "windfarm") -> pd.DataFrame:
         """Computes the monthly power production for the simulation by extrapolating
