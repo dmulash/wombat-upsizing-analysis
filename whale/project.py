@@ -946,6 +946,8 @@ class Project(FromDictMixin):
             return fig, ax
         return None
 
+    # Design and installation related metrics
+
     def capex(self, per_mw: bool = False, breakdown: bool = False) -> pd.DataFrame:
         """Provides a thin wrapper to ORBIT's ``ProjectManager`` CapEx calculations that
         can provide a breakdown of total or normalize it by the project's capacity, in MW.
@@ -975,6 +977,47 @@ class Project(FromDictMixin):
         if per_mw:
             capex["CapEx per MW"] = capex / self.orbit.capacity
         return capex
+
+    def array_system_total_cable_length(self):
+        """Calculates the total length of the cables in the array system, in km.
+
+        Returns
+        -------
+        float
+            Total length, in km, of the array system cables.
+
+        Raises
+        ------
+        ValueError
+            Raised if neither ``ArraySystemDesign`` nor ``CustomArraySystem`` design
+            were created in ORBIT.
+        """
+        if "ArraySystemDesign" in self.orbit._phases:
+            array = self.orbit._phases["ArraySystemDesign"]
+        elif "CustomArraySystemDesign" in self.orbit._phases:
+            array = self.orbit._phases["CustomArraySystemDesign"]
+        else:
+            raise ValueError("No array system design was included in the ORBIT configuration.")
+        return array.total_length
+
+    def export_system_total_cable_length(self):
+        """Calculates the total length of the cables in the export system, in km.
+
+        Returns
+        -------
+        float
+            Total length, in km, of the export system cables.
+
+        Raises
+        ------
+        ValueError
+            Raised if ``ExportSystemDesign`` was not created in ORBIT.
+        """
+        if "ExportSystemDesign" not in self.orbit._phases:
+            raise ValueError("No export system design was included in the ORBIT configuration.")
+        return self.orbit._phases["ExportSystemDesign"].total_length
+
+    # Operational metrics
 
     def energy_production(self, frequency: str = "project", by: str = "windfarm") -> pd.DataFrame:
         """Computes the monthly power production for the simulation by extrapolating
