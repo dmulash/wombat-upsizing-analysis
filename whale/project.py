@@ -209,6 +209,9 @@ class Project(FromDictMixin):
         floris_config : str | pathlib.Path | None
             The FLORIS configuration file name or dictionary. If None, will not set up
             the FLORIS simulation component.
+        connect_orbit_array_design : bool, optional
+            If True, the ORBIT array cable lengths will be calculated on initialization
+            and added into the primary layout file.
     """
 
     library_path: Path = field(converter=resolve_path)
@@ -233,6 +236,9 @@ class Project(FromDictMixin):
     floris_wind_direction: str = field(default="wind_direction", converter=str)
     floris_x_col: str = field(default="floris_x", converter=str)
     floris_y_col: str = field(default="floris_y", converter=str)
+    connect_orbit_array_design: bool = field(
+        default=True, validator=attrs.validators.instance_of(bool)
+    )
 
     # Internally created attributes, aka, no user inputs to these
     weather: pd.DataFrame = field(init=False)
@@ -262,6 +268,8 @@ class Project(FromDictMixin):
         self.setup_floris()
         if self.wombat_config is not None:
             self.connect_floris_to_turbines()
+        if self.connect_orbit_array_design:
+            self.connect_orbit_cable_lengths()
 
     @library_path.validator  # type: ignore
     def library_exists(self, attribute: attrs.Attribute, value: Path) -> None:
@@ -428,19 +436,23 @@ class Project(FromDictMixin):
             ``library_path``/cables/``wombat_config_dict["layout"]`` for WOMBAT and ORBIT
             compatibility, respectively.
         """
-        # Run the design phases
-        self.orbit.run_all_design_phases()
-
-        # Check for the array cable system design data
-        if "ArraySystemDesign" in self.orbit._phases:
-            array = self.orbit._phases["ArraySystemDesign"]
-        elif "CustomArraySystemDesign" in self.orbit._phases:
-            array = self.orbit._phases["CustomArraySystemDesign"]
+        # Get the correct design phase
+        design_phases = self.orbit_config_dict["design_phases"]
+        if "ArraySystemDesign" in design_phases:
+            name = "ArraySystemDesign"
+        elif "CustomArraySystemDesign" in design_phases:
+            name = "CustomArraySystemDesign"
         else:
             raise RuntimeError(
                 "None of `ArraySystemDesign` or `CustomArraySystemDesign` were included in the"
                 "ORBIT configuration"
             )
+
+        # Run the design phases if not already
+        if name not in self.orbit._phases:
+            self.orbit.run_all_design_phases()
+
+        array = self.orbit._phases[name]
         locations = array.location_data.copy()
         cable_lengths = array.sections_cable_lengths.copy()
 
