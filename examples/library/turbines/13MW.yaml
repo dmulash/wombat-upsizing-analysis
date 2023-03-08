@@ -1,0 +1,20 @@
+blade:
+  deck_space: 420      # m^2 
+  length: 112          # m
+  type: Blade
+  mass: 57             # t 
+hub_height: 136        # m
+nacelle:
+  deck_space: 213      # m^2 
+  type: Nacelle
+  mass: 663            # t  
+name: 13MW Turbine
+rated_windspeed: 11    # m/s
+rotor_diameter: 224    # m 
+tower:
+  deck_space: 58     # m^2 
+  sections: 2          # n 
+  type: Tower
+  length: 136
+  mass: 429            # t 
+turbine_rating: 13     # MW

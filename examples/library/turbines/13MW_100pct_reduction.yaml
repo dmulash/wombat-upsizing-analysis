@@ -1,14 +1,14 @@
-capacity_kw: 12000
+capacity_kw: 13000
 capex_kw: 1500  # need an updated value
 power_curve:
-  file: NREL_12MW_215_RWT.csv
+  file: NREL_13MW_223_RWT.csv
 turbine:
   name: turbine
   maintenance:
   - description: annual service
     time: 60
-    #materials: 18500, divide by 3-MW (the original turbine rating) and multiply by 12-MW
-    materials: 74000
+    #materials: 18500, divide by 3-MW (the original turbine rating) and multiply by 13-MW
+    materials: 80166.66
     service_equipment: CTV
     frequency: 365
   failures:
@@ -25,8 +25,8 @@ turbine:
       scale: 0.3333
       shape: 1
       time: 7.5
-      #materials: 1000, divide by 3-MW (the original turbine rating) and multiply by 12-MW
-      materials: 4000
+      #materials: 1000, divide by 3-MW (the original turbine rating) and multiply by 13-MW
+      materials: 4333.33
       service_equipment: CTV
       operation_reduction: 0.0
       level: 2
@@ -35,8 +35,8 @@ turbine:
       scale: 3.6363
       shape: 1
       time: 22
-      #materials: 18500, divide by 3-MW (the original turbine rating) and multiply by 12-MW
-      materials: 74000
+      #materials: 18500, divide by 3-MW (the original turbine rating) and multiply by 13-MW
+      materials: 80166.66
       service_equipment: CTV
       operation_reduction: 0.0
       level: 3
@@ -45,8 +45,8 @@ turbine:
       scale: 25
       shape: 1
       time: 26
-      #materials: 73500, divide by 3-MW (the original turbine rating) and multiply by 12-MW
-      materials: 294000
+      #materials: 73500, divide by 3-MW (the original turbine rating) and multiply by 13-MW
+      materials: 318500
       service_equipment: SCN
       operation_reduction: 0.0
       level: 4
@@ -55,8 +55,8 @@ turbine:
       scale: 12.5
       shape: 1
       time: 52
-      #materials: 334500, divide by 3-MW (the original turbine rating) and multiply by 12-MW
-      materials: 1338000
+      #materials: 334500, divide by 3-MW (the original turbine rating) and multiply by 13-MW
+      materials: 1449500
       service_equipment: LCN
       operation_reduction: 0.0
       level: 5

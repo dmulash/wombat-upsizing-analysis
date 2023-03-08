@@ -1,22 +1,22 @@
 # Site + Plant Parameters
 site:
-  depth: 26.381765177291
-  distance: 214
-  distance_to_landfall: 116
-  mean_windspeed: 9.16
+  depth: 51.10
+  distance: 100
+  distance_to_landfall: 93
+  mean_windspeed: 9.949526
 plant:
   layout: custom
-  num_turbines: 92
-  row_spacing: 8.613953488
+  num_turbines: 128
+  row_spacing: 7.47
   substation_distance: 1
-  turbine_spacing: 6.891162791
+  turbine_spacing: 7.47
 
 landfall:
-  interconnection_distance: 11
+  interconnection_distance: 17
   trench_length: 2
-turbine: 12MW_generic
+turbine: 16MW
 oss_design:
-  num_substations: 3
+  num_substations: 2
 # Vessels
 array_cable_install_vessel: example_cable_lay_vessel
 export_cable_install_vessel: example_cable_lay_vessel
@@ -32,7 +32,7 @@ array_system_design:
   cables:
   - XLPE_630mm_66kV
   - XLPE_185mm_66kV
-  location_data: ocean_wind_1_layout_base
+  location_data: new_england_layout_base
 export_system_design:
   cables: XLPE_1000m_220kV
   percent_added_length: 0.0
@@ -47,7 +47,7 @@ design_phases:
 - ExportSystemDesign
 - OffshoreSubstationDesign
 install_phases:
-  # ArrayCableInstallation: 0
+  ArrayCableInstallation: 0
   ExportCableInstallation: 1998
   MonopileInstallation: !!python/tuple
   - ScourProtectionInstallation

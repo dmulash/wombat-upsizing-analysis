@@ -8,7 +8,7 @@ nacelle:
   deck_space: 196      # m^2
   type: Nacelle
   mass: 550            # t
-name: 11MW SG Turbine
+name: 11MW Turbine
 rated_windspeed: 11    # m/s
 rotor_diameter: 200    # m
 tower:

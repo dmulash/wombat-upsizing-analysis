@@ -33,13 +33,14 @@ DESCRIPTION = "Windfarm Heuristics and Lifecycle Estimator"
 
 # Installation reuqirements
 REQUIRED = [
-    "orbit-nrel>=1.0.7",
-    "wombat>=0.6",
-    "floris>=3.2",
+    "orbit-nrel>=1.0.8",
+    "wombat>=0.6.2",
+    "floris>=3.3",
     "attrs",
     "matplotlib>=3.6",
     "pyyaml",
     "tqdm",
+    "numpy-financial>=1.0.0",
 ]
 TEST = ["pytest", "pytest-xdist", "pytest-cov"]
 DEV = ["pre-commit", "black", "mypy", "flake8", "flake8-docstrings", "isort", "pylint"] + TEST

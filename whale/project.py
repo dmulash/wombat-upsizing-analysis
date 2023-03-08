@@ -5,7 +5,6 @@ FLORIS (AEP) simulation libraries for simplified modeling workflow.
 from __future__ import annotations
 
 import json
-import multiprocessing as mp
 from copy import deepcopy
 from pathlib import Path
 from itertools import product
@@ -17,8 +16,8 @@ import pandas as pd
 import pyarrow as pa
 import networkx as nx
 import pyarrow.csv  # pylint: disable=W0611
+import numpy_financial as npf
 import matplotlib.pyplot as plt
-from tqdm import tqdm
 from attrs import field, define
 from ORBIT import ProjectManager, load_config
 from wombat.core import Simulation
@@ -26,7 +25,13 @@ from floris.tools import FlorisInterface
 from floris.tools.wind_rose import WindRose
 from wombat.core.data_classes import FromDictMixin
 
-from whale.core import load_yaml
+from whale.utilities import (
+    load_yaml,
+    check_monthly_wind_rose,
+    create_monthly_wind_rose,
+    run_parallel_time_series_floris,
+    calculate_monthly_wind_rose_results,
+)
 
 
 def resolve_path(value: str | Path) -> Path:
@@ -94,81 +99,6 @@ def load_weather(value: str | Path | pd.DataFrame) -> pd.DataFrame:
     return weather
 
 
-def run_chunked_floris(
-    args: tuple,
-) -> tuple[tuple[int, int], FlorisInterface, pd.DataFrame]:
-    """Runs ``fi.calculate_wake()`` over a chunk of a larger time series analysis and
-    returns the individual turbine powers for each corresponding time.
-
-    Args:
-        fi : FlorisInterface
-            A copy of the base ``FlorisInterface`` object.
-        weather : pd.DataFrame
-            A subset of the full weather profile, with only the datetime index and
-            columns: "windspeed" and "wind_direction".
-        chunk_id : tuple[int, int]
-            A tuple of the year and month for the data being processed.
-        reinit_kwargs : dict, optional
-            Any additional reinitialization keyword arguments. Defaults to {}.
-        run_kwargs : dict, optional
-            Any additional calculate_wake keyword arguments. Defaults to {}.
-
-    Returns
-    -------
-        tuple[tuple[int, int], FlorisInterface, pd.DataFrame]
-            The ``chunk_id``, a reinitialized ``fi`` using the appropriate wind
-            parameters that can be used for further post-processing, and the
-            resulting turbine powers.
-    """
-    fi: FlorisInterface = args[0]
-    weather: pd.DataFrame = args[1]
-    chunk_id: tuple[int, int] = args[2]
-    reinit_kwargs: dict = args[3]
-    run_kwargs: dict = args[4]
-
-    reinit_kwargs["wind_directions"] = weather.wind_direction.values
-    reinit_kwargs["wind_speeds"] = weather.windspeed.values
-    fi.reinitialize(time_series=True, **reinit_kwargs)
-    fi.calculate_wake(**run_kwargs)
-    power_df = pd.DataFrame(fi.get_turbine_powers()[:, 0, :], index=weather.index)
-    return chunk_id, fi, power_df
-
-
-def run_parallel_floris(
-    args_list: list[tuple[FlorisInterface, pd.DataFrame, tuple[int, int], dict, dict]],
-    nodes: int = -1,
-) -> tuple[dict[tuple[int, int], FlorisInterface], pd.DataFrame]:
-    """Runs the time series floris calculations in parallel.
-
-    Args:
-        args_list : list[tuple[FlorisInterface, pd.DataFrame, tuple[int, int], dict, dict]])
-            A list of the chunked by month arguments that get passed to
-            ``run_chunked_floris``.
-        nodes : int, optional
-            The number of nodes to parallelize over. If -1, then it will use the floor
-            of 80% of the available CPUs on the computer. Defaults to -1.
-
-    Returns
-    -------
-        tuple[dict[tuple[int, int], FlorisInterface], pd.DataFrame]
-            A dictionary of the ``chunk_id`` and ``FlorisInterface`` object, and the
-            full turbine power dataframe (without renamed columns).
-    """
-    nodes = int(mp.cpu_count() * 0.7) if nodes == -1 else nodes
-    with mp.Pool(nodes) as pool:
-        with tqdm(total=len(args_list), desc="Time series energy calculation") as pbar:
-            df_list = []
-            fi_dict = {}
-            for chunk_id, fi, df in pool.imap_unordered(run_chunked_floris, args_list):
-                df_list.append(df)
-                fi_dict[chunk_id] = fi
-                pbar.update()
-
-    fi_dict = dict(sorted(fi_dict.items()))
-    turbine_power_df = pd.concat(df_list).sort_index()
-    return fi_dict, turbine_power_df
-
-
 @define(auto_attribs=True)
 class Project(FromDictMixin):
     """The unified interface for creating, running, and assessing analyses that combine
@@ -209,9 +139,26 @@ class Project(FromDictMixin):
         floris_config : str | pathlib.Path | None
             The FLORIS configuration file name or dictionary. If None, will not set up
             the FLORIS simulation component.
+        connect_floris_to_layout : bool, optional
+            If True, automatically connect the FLORIS and WOMBAT layout files, so that
+            the simulation results can be linked. If False, don't connec the two models.
+            Defaults to True.
+
+            .. note:: This should only be set to False if the FLORIS and WOMBAT layouts
+                need to be connected in an additional step
+
         connect_orbit_array_design : bool, optional
             If True, the ORBIT array cable lengths will be calculated on initialization
             and added into the primary layout file.
+        offtake_price : float, optional
+            The price paid per MWh of energy produced. Defaults to None.
+        discount_rate : float, optional
+            The minimum acceptable rate of return, or the assumed return on an alternative
+            investment of comparable risk. Defaults to None.
+        finance_rate : float, optional
+            Interest rate paid on the cash flows. Defaults to None.
+        reinvestment_rate : float, optional
+            Interest rate paid on the cash flows upon reinvestment. Defaults to None.
     """
 
     library_path: Path = field(converter=resolve_path)
@@ -236,8 +183,23 @@ class Project(FromDictMixin):
     floris_wind_direction: str = field(default="wind_direction", converter=str)
     floris_x_col: str = field(default="floris_x", converter=str)
     floris_y_col: str = field(default="floris_y", converter=str)
+    connect_floris_to_layout: bool = field(
+        default=True, validator=attrs.validators.instance_of(bool)
+    )
     connect_orbit_array_design: bool = field(
         default=True, validator=attrs.validators.instance_of(bool)
+    )
+    offtake_price: float | int = field(
+        default=None, validator=attrs.validators.instance_of((float, int, type(None)))
+    )
+    discount_rate: float = field(
+        default=None, validator=attrs.validators.instance_of((float, type(None)))
+    )
+    finance_rate: float = field(
+        default=None, validator=attrs.validators.instance_of((float, type(None)))
+    )
+    reinvestment_rate: float = field(
+        default=None, validator=attrs.validators.instance_of((float, type(None)))
     )
 
     # Internally created attributes, aka, no user inputs to these
@@ -248,12 +210,13 @@ class Project(FromDictMixin):
     wombat: Simulation = field(init=False)
     orbit: ProjectManager = field(init=False)
     floris: FlorisInterface = field(init=False)
-    wind_rose: WindRose = field(init=False)
+    project_wind_rose: WindRose = field(init=False)
+    monthly_wind_rose: WindRose = field(init=False)
     floris_turbine_order: list[str] = field(init=False, factory=list)
-    floris_results_type: str = field(init=False)
-    aep_mwh: float = field(init=False)
-    turbine_aep_mwh: pd.DataFrame = field(init=False)
+    turbine_potential_energy: pd.DataFrame = field(init=False)
+    project_potential_energy: pd.DataFrame = field(init=False)
     _fi_dict: dict[tuple[int, int], FlorisInterface] = field(init=False, factory=dict)
+    floris_results_type: str = field(init=False)
     operations_start: pd.Timestamp = field(init=False)
     operations_end: pd.Timestamp = field(init=False)
     operations_years: int = field(init=False)
@@ -266,10 +229,14 @@ class Project(FromDictMixin):
         self.setup_orbit()
         self.setup_wombat()
         self.setup_floris()
-        if self.wombat_config is not None:
+        if self.connect_floris_to_layout:
             self.connect_floris_to_turbines()
         if self.connect_orbit_array_design:
             self.connect_orbit_cable_lengths()
+
+    # **********************************************************************************************
+    # Input validation methods
+    # **********************************************************************************************
 
     @library_path.validator  # type: ignore
     def library_exists(self, attribute: attrs.Attribute, value: Path) -> None:
@@ -288,6 +255,10 @@ class Project(FromDictMixin):
             raise FileNotFoundError(f"The input path to {attribute.name} cannot be found: {value}")
         if not value.is_dir():
             raise ValueError(f"The input path to {attribute.name}: {value} is not a directory.")
+
+    # **********************************************************************************************
+    # Configuration methods
+    # **********************************************************************************************
 
     @classmethod
     def from_file(cls, library_path: str | Path, config_file: str | Path) -> Project:
@@ -360,6 +331,10 @@ class Project(FromDictMixin):
         config_dict = self.config_dict
         with open(self.library_path / "project/config" / config_file, "w") as f:
             yaml.dump(config_dict, f, default_flow_style=False)
+
+    # **********************************************************************************************
+    # Setup and setup assisting methods
+    # **********************************************************************************************
 
     def setup_orbit(self) -> None:
         """Creates the ORBIT Project Manager object and readies it for running an analysis."""
@@ -450,7 +425,7 @@ class Project(FromDictMixin):
 
         # Run the design phases if not already
         if name not in self.orbit._phases:
-            self.orbit.run_all_design_phases()
+            self.orbit.run_design_phase(name)
 
         array = self.orbit._phases[name]
         locations = array.location_data.copy()
@@ -472,7 +447,7 @@ class Project(FromDictMixin):
         # Add the cable length values to the layout file
         id_ix = locations.id.values
         self.wombat.windfarm.layout_df.loc[
-            self.wombat.windfarm.layout_df.id == id_ix, "cable_length"
+            self.wombat.windfarm.layout_df.id.isin(id_ix), "cable_length"
         ] = locations.cable_length
 
         # Save the updated data to the original layout locations
@@ -481,7 +456,51 @@ class Project(FromDictMixin):
             self.wombat.windfarm.layout_df.to_csv(
                 self.library_path / "project/plant" / layout_file_name
             )
-            self.wombat.windfarm.layout_df.to_csv(self.library_path / "cables" / layout_file_name)
+
+    def generate_floris_positions_from_layout(
+        self,
+        x_col: str = "easting",
+        y_col: str = "northing",
+        update_config: bool = True,
+        config_fname: str | None = None,
+    ) -> None:
+        """Updates the FLORIS layout_x and layout_y based on the relative coordinates
+        from the WOMBAT layout file.
+
+        Args:
+            x_col : str, optional
+                The relative, distance-based x-coordinate column name. Defaults to "easting".
+            y_col : str, optional
+                The relative, distance-based y-coordinate column name. Defaults to "northing".
+            update_config : bool, optional
+                Run ``FlorisInterface.reinitialize`` with the updated ``layout_x`` and
+                ``layout_y`` values. Defaults to True.
+            config_fname : str | None, optional
+                Provide a file name if ``update_config`` and this new configuration
+                should be saved. Defaults to None.
+        """
+        layout = self.wombat.windfarm.layout_df
+        x_min = layout[x_col].min()
+        y_min = layout[y_col].min()
+        layout.assign(floris_x=layout[x_col] - x_min, floris_y=layout[y_col] - y_min)
+        layout = layout.loc[
+            layout.id.isin(self.wombat.windfarm.turbine_id), ["floris_x", "floris_y"]
+        ]
+        x, y = layout.values.T
+        self.floris.reinitialize(layout_x=x, layout_y=y)
+        if update_config:
+            assert isinstance(self.floris_config_dict, dict)  # mypy helper
+            self.floris_config_dict["farm"]["layout_x"] = x.tolist()
+            self.floris_config_dict["farm"]["layout_y"] = y.tolist()
+            if config_fname is not None:
+                full_path = self.library_path / "project/config" / config_fname
+                with open(full_path, "w") as f:
+                    yaml.dump(self.floris_config_dict, f, default_flow_style=False)
+                    print(f"Updated FLORIS configuration saved to: {full_path}.")
+
+    # **********************************************************************************************
+    # Run methods
+    # **********************************************************************************************
 
     def preprocess_monthly_floris(
         self,
@@ -619,17 +638,27 @@ class Project(FromDictMixin):
 
         # recreate the FlorisInterface object for the wind rose settings
         wd, ws = weather.values.T
-        self.wind_rose = WindRose()
-        wind_rose_df = self.wind_rose.make_wind_rose_from_user_data(
+        self.project_wind_rose = WindRose()
+        project_wind_rose_df = self.project_wind_rose.make_wind_rose_from_user_data(
             wd, ws
         )  # noqa: F841  pylint: disable=W0612
-        freq = self.wind_rose.df.set_index(["wd", "ws"]).unstack().values
+        self.monthly_wind_rose = create_monthly_wind_rose(
+            weather.rename(columns={self.floris_wind_direction: "wd", self.floris_windspeed: "ws"})
+        )
+        self.monthly_wind_rose = check_monthly_wind_rose(
+            self.project_wind_rose, self.monthly_wind_rose
+        )
+        self.project_wind_rose.df.set_index(["wd", "ws"]).unstack().values
+        freq_monthly = {
+            k: wr.df.set_index(["wd", "ws"]).unstack().values
+            for k, wr in self.monthly_wind_rose.items()
+        }
 
         # Recreating FlorisInterface.get_farm_AEP() w/o some of the quality checks
         # because the parameters are coming directly from other FLORIS objects, and
         # not user inputs
-        wd = wind_rose_df.wd.unique()
-        ws = wind_rose_df.ws.unique()
+        wd = project_wind_rose_df.wd.unique()
+        ws = project_wind_rose_df.ws.unique()
         n_wd = wd.size
         n_ws = ws.size
         ix_evaluate = ws >= run_kwargs["cut_in_wind_speed"]
@@ -659,10 +688,12 @@ class Project(FromDictMixin):
         else:
             self.floris.reinitialize(wind_speeds=ws, wind_directions=wd)
 
-        self.aep_mwh = np.sum(freq * farm_power) * 8760 / 1e6
-        self.turbine_aep_mwh = (
-            np.sum(freq.reshape((*freq.shape, 1)) * turbine_power, axis=(0, 1)) * 8760 / 1e6
+        # Calculate the monthly contribution to AEP from the wind rose
+        self.turbine_potential_energy = calculate_monthly_wind_rose_results(
+            turbine_power, freq_monthly
         )
+        self.turbine_potential_energy.columns = self.floris_turbine_order
+        self.project_potential_energy = self.turbine_potential_energy.values.sum()
 
     def run_floris(
         self,
@@ -726,14 +757,14 @@ class Project(FromDictMixin):
             parallel_args, zero_power_filter = self.preprocess_monthly_floris(
                 reinitialize_kwargs, run_kwargs, cut_in_wind_speed, cut_out_wind_speed
             )
-            fi_dict, turbine_powers = run_parallel_floris(parallel_args, nodes)
+            fi_dict, turbine_powers = run_parallel_time_series_floris(parallel_args, nodes)
 
             self._fi_dict = fi_dict
             self.turbine_aep_mwh = turbine_powers
             self.connect_floris_to_turbines(x_col=self.floris_x_col, y_col=self.floris_y_col)
-            self.turbine_aep_mwh.columns = self.floris_turbine_order
-            self.turbine_aep_mwh = (
-                self.turbine_aep_mwh.where(
+            self.turbine_potential_energy.columns = self.floris_turbine_order
+            self.turbine_potential_energy = (
+                self.turbine_potential_energy.where(
                     np.repeat(
                         zero_power_filter.reshape(-1, 1),
                         self.turbine_aep_mwh.shape[1],
@@ -744,8 +775,8 @@ class Project(FromDictMixin):
                 / 1e6
             )
 
-            n_years = self.turbine_aep_mwh.index.year.unique().size
-            self.aep_mwh = self.turbine_aep_mwh.values.sum() / n_years
+            n_years = self.turbine_potential_energy.index.year.unique().size
+            self.project_potential_energy = self.turbine_potential_energy.values.sum() / n_years
             self.floris_results_type = "time_series"
         else:
             raise ValueError(f"`which` must be one of: 'wind_rose' or 'time_series', not: {which}")
@@ -805,10 +836,10 @@ class Project(FromDictMixin):
                 f"`which_floris` must be one of: 'wind_rose' or 'time_series', not: {which_floris}"
             )
 
-        if which_floris == "wind_rose" and cut_in_wind_speed is not None:
-            floris_reinitialize_kwargs.update({"cut_in_wind_speed": cut_in_wind_speed})
-        if which_floris == "wind_rose" and cut_out_wind_speed is not None:
-            floris_reinitialize_kwargs.update({"cut_out_wind_speed": cut_out_wind_speed})
+        if which_floris == "wind_rose":
+            floris_reinitialize_kwargs.update(
+                {"cut_in_wind_speed": cut_in_wind_speed, "cut_out_wind_speed": cut_out_wind_speed}
+            )
 
         if "orbit" not in skip:
             self.orbit.run()
@@ -856,50 +887,10 @@ class Project(FromDictMixin):
 
         return
 
-    # Helper methods
-
-    def generate_floris_positions_from_layout(
-        self,
-        x_col: str = "easting",
-        y_col: str = "northing",
-        update_config: bool = True,
-        config_fname: str | None = None,
-    ) -> None:
-        """Updates the FLORIS layout_x and layout_y based on the relative coordinates
-        from the WOMBAT layout file.
-
-        Args:
-            x_col : str, optional
-                The relative, distance-based x-coordinate column name. Defaults to "easting".
-            y_col : str, optional
-                The relative, distance-based y-coordinate column name. Defaults to "northing".
-            update_config : bool, optional
-                Run ``FlorisInterface.reinitialize`` with the updated ``layout_x`` and
-                ``layout_y`` values. Defaults to True.
-            config_fname : str | None, optional
-                Provide a file name if ``update_config`` and this new configuration
-                should be saved. Defaults to None.
-        """
-        layout = self.wombat.windfarm.layout_df
-        x_min = layout[x_col].min()
-        y_min = layout[y_col].min()
-        layout.assign(floris_x=layout[x_col] - x_min, floris_y=layout[y_col] - y_min)
-        layout = layout.loc[
-            layout.id.isin(self.wombat.windfarm.turbine_id), ["floris_x", "floris_y"]
-        ]
-        x, y = layout.values.T
-        self.floris.reinitialize(layout_x=x, layout_y=y)
-        if update_config:
-            assert isinstance(self.floris_config_dict, dict)  # mypy helper
-            self.floris_config_dict["farm"]["layout_x"] = x.tolist()
-            self.floris_config_dict["farm"]["layout_y"] = y.tolist()
-            if config_fname is not None:
-                full_path = self.library_path / "project/config" / config_fname
-                with open(full_path, "w") as f:
-                    yaml.dump(self.floris_config_dict, f, default_flow_style=False)
-                    print(f"Updated FLORIS configuration saved to: {full_path}.")
-
+    # **********************************************************************************************
     # Results methods
+    # **********************************************************************************************
+
     # TODO: Figure out the actual workflows requried to have more complete/easier reporting
 
     def plot_farm(
@@ -948,23 +939,116 @@ class Project(FromDictMixin):
 
     # Design and installation related metrics
 
-    def capex(self, per_mw: bool = False, breakdown: bool = False) -> pd.DataFrame:
-        """Provides a thin wrapper to ORBIT's ``ProjectManager`` CapEx calculations that
-        can provide a breakdown of total or normalize it by the project's capacity, in MW.
-
-        Args:
-            per_mw : bool, optional
-                Provide the CapEx normalized by the project's capacity, in MW. Defaults
-                to False.
-            breakdown : bool, optional
-                Provide a detailed view of the CapEx breakdown, and a total, which is
-                the sum of the BOS, turbine, project, and soft CapEx categories.
-                Defaults to False.
+    def n_turbines(self) -> int:
+        """Returns the number of turbines from either ORBIT, WOMBAT, or FLORIS depending on which
+        model is available internally.
 
         Returns
         -------
-            pd.DataFrame
-                Project CapEx in the base currency or normalized by project capacity, in MW.
+        int
+            The number of turbines in the project.
+
+        Raises
+        ------
+        RuntimeError
+            Raised if no model configurations were provided on initialization.
+        """
+        if self.orbit_config is not None:
+            return self.orbit.num_turbines
+        if self.wombat_config is not None:
+            return len(self.wombat.windfarm.turbine_id)
+        if self.floris_config is not None:
+            return self.floris.farm.n_turbines
+        raise RuntimeError("No models wer provided, cannot calculate value.")
+
+    def turbine_rating(self) -> float:
+        """Calculates the average turbine rating, in MW, of all the turbines in the project.
+
+        Returns
+        -------
+        float
+            The average rating of the turbines, in MW.
+
+        Raises
+        ------
+        RuntimeError
+            Raised if no model configurations were provided on initialization.
+        """
+        if self.orbit_config is not None:
+            return self.orbit.turbine_rating
+        if self.wombat_config is not None:
+            return self.wombat.windfarm.capacity / 1000 / self.n_turbines
+        raise RuntimeError("No models wer provided, cannot calculate value.")
+
+    def n_substations(self) -> int:
+        """Calculates the number of subsations in the project.
+
+        Returns
+        -------
+        int
+            The number of substations in the project.
+        """
+        if self.orbit_config is not None or "OffshoreSubstationDesign" not in self.orbit._phases:
+            return self.orbit._phases["OffshoreSubstationDesign"].num_substations
+        if self.wombat_config is not None:
+            return len(self.wombat.windfarm.substation_id)
+        raise RuntimeError("No models wer provided, cannot calculate value.")
+
+    def capacity(self, units: str = "mw") -> float:
+        """Calculates the project's capacity in the desired units of kW, MW, or GW.
+
+        Parameters
+        ----------
+        units : str, optional
+            One of "kw", "mw", or "gw". Defaults to "mw".
+
+        Returns
+        -------
+        float
+            The project capacity, returned in the desired units
+
+        Raises
+        ------
+        RuntimeError
+            Raised if no model configurations were provided on initialization.
+        ValueError
+            Raised if an invalid units input was provided.
+        """
+        if self.orbit_config is not None:
+            capacity = self.orbit.capacity
+        elif self.wombat_config is not None:
+            capacity = self.wombat.windfarm.capacity / 1000
+        else:
+            raise RuntimeError("No models wer provided, cannot calculate value.")
+
+        units = units.lower()
+        if units == "kw":
+            return capacity * 1000
+        if units == "mw":
+            return capacity
+        if units == "gw":
+            return capacity / 1000
+        raise ValueError("`units` must be one of: 'kw', 'mw', or 'gw'.")
+
+    def capex(self, breakdown: bool = False, per_capacity: str | None = None) -> pd.DataFrame:
+        """Provides a thin wrapper to ORBIT's ``ProjectManager`` CapEx calculations that
+        can provide a breakdown of total or normalize it by the project's capacity, in MW.
+
+        Parameters
+        ----------
+        breakdown : bool, optional
+            Provide a detailed view of the CapEx breakdown, and a total, which is
+            the sum of the BOS, turbine, project, and soft CapEx categories. Defaults to False.
+        per_capacity : str, optional
+            Provide the CapEx normalized by the project's capacity, in the desired units. If
+            None, then the unnormalized CapEx is returned, otherwise it must be one of "kw",
+            "mw", or "gw". Defaults to None.
+
+        Returns
+        -------
+        pd.DataFrame | float
+            Project CapEx, normalized by :py:attr:`per_capacity`, if using, as either a
+            pandas DataFrame if :py:attr:`breakdown` is True, otherwise, a float total.
         """
         if breakdown:
             capex = pd.DataFrame.from_dict(
@@ -972,11 +1056,23 @@ class Project(FromDictMixin):
             )
             capex.loc["Total"] = self.orbit.total_capex
         else:
-            capex = pd.DataFrame([], columns="CapEx", index="Total")
+            capex = pd.DataFrame(
+                [self.orbit.total_capex], columns=["CapEx"], index=pd.Index(["Total"])
+            )
 
-        if per_mw:
-            capex["CapEx per MW"] = capex / self.orbit.capacity
-        return capex
+        if per_capacity is None:
+            if breakdown:
+                return capex
+            return capex.values[0, 0]
+
+        per_capacity = per_capacity.lower()
+        capacity = self.capacity(per_capacity)
+        unit_map = {"kw": "kW", "mw": "MW", "gw": "GW"}
+        capex[f"CapEx per {unit_map[per_capacity]}"] = capex / capacity
+
+        if breakdown:
+            return capex
+        return capex.values[0, 0]
 
     def array_system_total_cable_length(self):
         """Calculates the total length of the cables in the array system, in km.
@@ -998,7 +1094,9 @@ class Project(FromDictMixin):
             array = self.orbit._phases["CustomArraySystemDesign"]
         else:
             raise ValueError("No array system design was included in the ORBIT configuration.")
-        return array.total_length
+
+        # TODO: Fix ORBIT bug for nansum
+        return np.nansum(array.sections_cable_lengths)
 
     def export_system_total_cable_length(self):
         """Calculates the total length of the cables in the export system, in km.
@@ -1019,32 +1117,39 @@ class Project(FromDictMixin):
 
     # Operational metrics
 
-    def energy_production(self, frequency: str = "project", by: str = "windfarm") -> pd.DataFrame:
-        """Computes the monthly power production for the simulation by extrapolating
-        the AEP if FLORIS results were computed by a wind rose, or using the time series
-        results, and multiplying it by the WOMBAT monthly
-        ``Metrics.production_based_availability``.
+    def energy_production(
+        self, frequency: str = "project", by: str = "windfarm", per_capacity: str | None = None
+    ) -> pd.DataFrame:
+        """Computes the energy production, in GWh, for the simulation by extrapolating the monthly
+        contributions to AEP if FLORIS results were computed by a wind rose, or using the time
+        series results, and multiplying it by the WOMBAT monthly availability
+        (``Metrics.production_based_availability``).
 
-        Args:
-            frequency : str, optional
-                One of "project" (project total), "annual" (annual total), or
-                "month-year" (monthly totals for each year). For FLORIS analyses run on
-                a wind rose basis, only "project" and "annual" is available, and for
-                time-series based results, all options are available. Defaults to
-                "project".
-            by : str, optional
-                One of "windfarm" (project level) or "turbine" (turbine level) to
-                indicate what level to calculate the
+        .. warning:: This assumes that the simulation period is January - December for every year
+            of the simulation.
+
+        Parameters
+        ----------
+        frequency : str, optional
+            One of "project" (project total), "annual" (annual total), or "month-year"
+            (monthly totals for each year).
+        by : str, optional
+            One of "windfarm" (project level) or "turbine" (turbine level) to
+            indicate what level to calculate the
+        per_capacity : str, optional
+            Provide the energy production normalized by the project's capacity, in the desired
+            units. If None, then the unnormalized energy production is returned, otherwise it must
+            be one of "kw", "mw", or "gw". Defaults to None.
 
         Raises
         ------
-            ValueError
-                Raised if ``frequency`` is not one of: "project", "annual", "month-year".
+        ValueError
+            Raised if ``frequency`` is not one of: "project", "annual", "month-year".
 
         Returns
         -------
-            pd.DataFrame
-                The wind farm-level power prodcution for the desired ``frequency``.
+        pd.DataFrame
+            The wind farm-level energy prodcution, in GWh, for the desired ``frequency``.
         """
         # Check the frequency input
         opts = ("project", "annual", "month-year")
@@ -1053,60 +1158,140 @@ class Project(FromDictMixin):
 
         # For the wind rose outputs, only consider project-level availability because
         # wind rose AEP is a long-term estimation of energy production
+        power_gwh = self.wombat.metrics.production_based_availability(
+            frequency="month-year", by="turbine"
+        ).loc[:, self.floris_turbine_order]
         if self.floris_results_type == "wind_rose":
-            if frequency not in ("project", "annual"):
-                raise ValueError(
-                    "Wind rose analyses only allow for 'annual' and 'project' level"
-                    " energy production."
+            power_gwh *= (
+                np.repeat(
+                    self.turbine_potential_energy.values,
+                    power_gwh.shape[0] / self.turbine_potential_energy.shape[0],
+                    axis=0,
                 )
-            power_gwh = (
-                self.wombat.metrics.production_based_availability(
-                    frequency="annual", by="turbine"
-                ).loc[:, self.floris_turbine_order]
-                * self.turbine_aep_mwh
+                / 1000
             )
-
-            if frequency == "project":
-                power_gwh = power_gwh.sum(axis=0).to_frame("Energy Production (GWh)")
-
-            if by == "windfarm":
-                return (
-                    power_gwh.sum(axis=1)
-                    .rename({0: "Energy Production (GWh)"})
-                    .to_frame("wind_farm")
-                )
-            return power_gwh.rename(index={0: "Energy Production (GWh)"})
 
         if self.floris_results_type == "time_series":
-            availability = self.wombat.metrics.production_based_availability(
-                frequency="month-year", by="turbine"
-            )
             power_gwh = self.turbine_aep_mwh / 1000
-            power_gwh = (
-                power_gwh.assign(year=power_gwh.index.year, month=power_gwh.index.month)
+            power_gwh *= (
+                self.turbine_potential_energy.assign(
+                    year=power_gwh.index.year, month=power_gwh.index.month
+                )
                 .groupby(["year", "month"])
                 .sum()
-                .loc[availability.index]
-            ) * availability.loc[:, self.floris_turbine_order]
+                .loc[power_gwh.index]
+            )
 
-            if by == "windfarm":
-                power_gwh = power_gwh.sum(axis=1).to_frame("Energy Production (GWh)")
+        if by == "windfarm":
+            power_gwh = power_gwh.sum(axis=1).to_frame("Energy Production (GWh)")
 
-            # Aggregate to the desired frequency level
-            if frequency == "month-year":
-                return power_gwh
-            elif frequency == "annual":
-                return (
-                    power_gwh.reset_index(drop=False).groupby("year").sum().drop(columns=["month"])
-                )
-            elif frequency == "project":
-                return pd.DataFrame(
+        # Aggregate to the desired frequency level (nothing required for month-year)
+        if frequency == "annual":
+            power_gwh = (
+                power_gwh.reset_index(drop=False).groupby("year").sum().drop(columns=["month"])
+            )
+        elif frequency == "project":
+            if by == "turbine":
+                power_gwh = pd.DataFrame(
                     [power_gwh.reset_index(drop=False).values.sum()],
                     columns=["Energy Production (GWh)"],
                 )
+            else:
+                power_gwh = power_gwh.reset_index(drop=False).values.sum()
+
+        if per_capacity is None:
+            return power_gwh
+
+        per_capacity = per_capacity.lower()
+        return power_gwh / self.capacity(per_capacity)
+
+    def opex(
+        self, frequency: str = "project", per_capacity: str | None = None
+    ) -> pd.DataFrame | None:
+        """Calculates the operational expenditures of the project.
+
+        Parameters
+        ----------
+        frequency (str, optional): One of "project", "annual", "monthly", "month-year".
+            Defaults to "project".
+        per_capacity : str, optional
+            Provide the OpEx normalized by the project's capacity, in the desired units. If None,
+            then the unnormalized OpEx is returned, otherwise it must be one of "kw", "mw", or "gw".
+            Defaults to None.
+
+        Returns
+        -------
+        pd.DataFrame | float
+            The resulting OpEx DataFrame at the desired frequency, if more granular than the project
+            frequency, otherwise a float. This will be normalized by the capacity, if
+            :py:attr:`per_capacity` is not None.
+        """
+        opex = self.wombat.metrics.opex(frequency=frequency)
+        if frequency == "project":
+            opex = opex.values[0, 0]
+        if per_capacity is None:
+            return opex
+
+        per_capacity = per_capacity.lower()
+        return opex / self.capacity(per_capacity)
+
+    def revenue(
+        self,
+        frequency: str = "project",
+        offtake_price: float | None = None,
+        per_capacity: str | None = None,
+    ) -> pd.DataFrame:
+        """Calculates the revenue stream using the WOMBAT availabibility, FLORIS energy
+        production, and WHaLE energy pricing.
+
+        Parameters
+        ----------
+        frequency : str, optional
+            One of "project", "annual", "monthly", or "month-year". Defaults to "project".
+        offtake_price : float, optional
+            Price paid per MWh of energy produced. Defaults to None.
+        per_capacity : str, optional
+            Provide the revenue normalized by the project's capacity, in the desired units.
+            If None, then the unnormalized revenue is returned, otherwise it must
+            be one of "kw", "mw", or "gw". Defaults to None.
+
+        Returns
+        -------
+        pd.DataFrame | float
+            The revenue stream of the wind farm at the provided frequency.
+        """
+        # Check the frequency input
+        opts = ("project", "annual", "month-year")
+        if frequency not in opts:
+            raise ValueError(f"`frequency` must be one of {opts}.")  # type: ignore
+
+        # Check that an offtake_price exists
+        if offtake_price is None:
+            if (offtake_price := self.offtake_price) is None:
+                raise ValueError(
+                    "`offtake_price` wasn't defined in the Project settings or in the method"
+                    " keyword arguments."
+                )
+
+        if self.floris_results_type == "wind_rose":
+            revenue = self.energy_production(frequency=frequency) / 1000 * offtake_price  # MWh
+        else:
+            revenue = self.energy_production(frequency=frequency) / 1000 * offtake_price  # MWh
+
+        if frequency == "project":
+            revenue = revenue.values[0, 0]
+
+        if per_capacity is None:
+            return revenue
+
+        per_capacity = per_capacity.lower()
+        return revenue / self.capacity(per_capacity)
 
     def npv(
-        self, frequency: str, discount_rate: float = 0.025, offtake_price: float = 80
+        self,
+        frequency: str = "project",
+        discount_rate: float | None = None,
+        offtake_price: float | None = None,
     ) -> pd.DataFrame:
         """Calculates the net present value of the windfarm at a project, annual, or
         monthly resolution given a base discount rate and offtake price.
@@ -1119,10 +1304,9 @@ class Project(FromDictMixin):
         frequency : str
             One of "project", "annual", "monthly", or "month-year".
         discount_rate : float, optional
-            The rate of return that could be earned on alternative investments, by
-            default 0.025.
+            The rate of return that could be earned on alternative investments. Defaults to None.
         offtake_price : float, optional
-            Price of energy, per MWh, by default 80.
+            Price of energy, per MWh. Defaults to None.
 
         Returns
         -------
@@ -1133,6 +1317,22 @@ class Project(FromDictMixin):
         opts = ("project", "annual", "month-year")
         if frequency not in opts:
             raise ValueError(f"`frequency` must be one of {opts}.")  # type: ignore
+
+        # Check that the discout rate exists
+        if discount_rate is None:
+            if (discount_rate := self.discount_rate) is None:
+                raise ValueError(
+                    "`discount_rate` wasn't defined in the Project settings or in the method"
+                    " keyword arguments."
+                )
+
+        # Check that the offtake price exists
+        if offtake_price is None:
+            if (offtake_price := self.offtake_price) is None:
+                raise ValueError(
+                    "`offtake_price` wasn't defined in the Project settings or in the method"
+                    " keyword arguments."
+                )
 
         if self.floris_results_type == "wind_rose":
             if frequency not in ("project", "annual"):
@@ -1163,9 +1363,154 @@ class Project(FromDictMixin):
 
         # Aggregate the results to the required resolution
         if frequency == "project":
-            return pd.DataFrame(npv.reset_index().sum()).T[["NPV"]]
+            return npv.reset_index().sum().T.NPV
         elif frequency == "annual":
             return npv.reset_index().groupby("year").sum()[["NPV"]]
         elif frequency == "monthly":
             return npv.reset_index().groupby("month").sum()[["NPV"]]
         return npv[["NPV"]]
+
+    def irr(
+        self,
+        offtake_price: float | None = None,
+        finance_rate: float | None = None,
+        reinvestment_rate: float | None = None,
+    ) -> float:
+        """Calculates the Internal Rate of Return using the ORBIT CapEx as the initial
+        investment in conjunction with the WHaLE monthly cash flows.
+
+        .. note:: This method allows for the caluclation of the modified internal rate of return
+            through https://numpy.org/numpy-financial/latest/mirr.html#numpy_financial.mirr
+            if both the :py:attr:`finance_rate` and the :py:attr:`reinvestment_rate` are provided.
+
+        Parameters
+        ----------
+        offtake_price : float, optional
+            Price of energy, per MWh. Defaults to None.
+        finance_rate : float, optional
+            Interest rate paid on the cash flows. Only used if :py:attr:`reinvestment_rate` is also
+            provided. Defaults to None.
+        reinvestment_rate : float, optional
+            Interest rate received on the cash flows upon reinvestment.  Only used if
+            :py:attr:`finance_rate` is also provided.
+
+        Returns
+        -------
+        float
+            The IRR.
+        """
+        # Check that the offtake price exists
+        if offtake_price is None:
+            if (offtake_price := self.offtake_price) is None:
+                raise ValueError(
+                    "`offtake_price` wasn't defined in the Project settings or in the method"
+                    " keyword arguments."
+                )
+
+        # Check to see if the Modified IRR should be used
+        if finance_rate is None:
+            finance_rate = self.finance_rate
+        if reinvestment_rate is None:
+            reinvestment_rate = self.reinvestment_rate
+
+        initial = self.orbit.total_capex
+        revenues = self.revenue(frequency="month-year", offtake_price=offtake_price).values
+        expenses = self.opex(frequency="month-year").values  # type: ignore
+
+        values = [initial] + (revenues - expenses).flatten().tolist()
+        if finance_rate is None or reinvestment_rate is None:
+            return npf.irr(values)
+        return npf.mirr(values, finance_rate, reinvestment_rate)
+
+    def lcoe(self, units: str = "mw") -> float:
+        """Calculates the levelized cost of energy (LCOE) as the (CapEx + OpEx) / energy
+        in the provided units base.
+
+        Parameters
+        ----------
+        units : str, optional
+            One of "kw", "mw", or "gw" for the energy basis. For instance "mw" provides LCOE as
+            $/MWh. Defaults to "mw".
+
+        Returns
+        -------
+        float
+            The levelized cost of energy.
+
+        Raises
+        ------
+        ValueError
+            Raised if the input to :py:attr:`units` is not one of "kw", "mw", or "gw".
+        """
+        costs = self.capex() + self.opex()
+        if units == "kw":
+            energy = self.energy_production() * 1e6
+        elif units == "mw":
+            energy = self.energy_production() * 1e3
+        elif units == "gw":
+            energy = self.energy_production()
+        else:
+            raise ValueError("`units` must be one of 'gw', 'mw', or 'kw' for the base energy unit.")
+        return energy / costs
+
+    def generate_report(
+        self,
+        metrics_configuration: dict[str, dict],
+        simulation_name: str,
+    ) -> pd.DataFrame:
+        """Generates a single row dataframe of all the desired resulting metrics from the project.
+
+        .. note:: This assumes all results will be a single number, and not
+
+        Parameters
+        ----------
+        metrics_dict : dict[str, dict]
+            The dictionary of dictionaries containing the following key, value pair pattern:
+            ```python
+                {
+                    "Descriptive Name (units)": {
+                        "metric": metric_method_name",
+                        "kwargs": {"kwarg1": "kwarg_value_1"}
+                    }
+                }
+            ```
+            For metrics that have no keyword arguments, an empty dictionary for "kwargs" is allowed.
+        simulation_name : str
+            The name that should be given to the resulting index.
+
+        Returns
+        -------
+        pd.DataFrame
+            _description_
+
+        Raises
+        ------
+        ValueError
+            Raised if any of the keys of :py:attr:`metrics_dict` aren't implemented methods.
+        """
+        invalid_metrics = [
+            el["metric"] for el in metrics_configuration.values() if not hasattr(self, el["metric"])
+        ]
+        if invalid_metrics:
+            names = "', '".join(invalid_metrics)
+            raise ValueError(f"None of the following are valid metrics: '{names}'.")
+
+        results = {
+            name: getattr(self, val["metric"])(**val["kwargs"])
+            for name, val in metrics_configuration.items()
+        }
+        results_df = pd.DataFrame.from_dict(results, orient="index").T
+        results_df.index = pd.Index([simulation_name])
+        results_df.index.name = "Project"
+        return results_df
+
+
+# *****************************************************************************
+# TODO
+# ----
+# - ORBIT timestamped installation/procurement to feed into the IRR
+# - Considering adding a year/month for the procurement costs
+# - development costs are time 0
+# - procurement gets input to fill in the time series
+# - Easting/Norhting -> lat/lon code
+# *****************************************************************************
