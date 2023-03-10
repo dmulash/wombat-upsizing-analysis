@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 from copy import deepcopy
 from pathlib import Path
+from functools import reduce, partial
 from itertools import product
 
 import yaml
@@ -55,6 +56,44 @@ def resolve_path(value: str | Path) -> Path:
         return value.resolve()
 
     raise TypeError(f"The input path: {value}, must be of type `str` or `pathlib.Path`.")
+
+
+def convert_to_multi_index(
+    date_tuples: tuple[int, int] | list[tuple[int, int]] | pd.MultiIndex | None, name: str
+) -> pd.MultiIndex:
+    """Converts year and month tuple(s) into a pandas MultiIndex.
+
+    Parameters
+    ----------
+    date_tuples : tuple[int, int] | list[tuple[int, int]] | pd.MultiIndex | None
+        A single (``tuple``), or many combinations (``list`` of ``tuple``s) of ``int`` year and
+        ``int`` month. If a ``MultiIndex`` or ``None`` is passed, it will be returned as-is
+    name : str
+        The name of the variable to ensure that a helpful error is raised in case of invalid inputs.
+
+    Returns
+    -------
+    pd.MultiIndex | None
+        A pandas MultIndex with index columns: "year" and "month", or None, if None is passed.
+
+    Raises
+    ------
+    ValueError
+        Raised if the year, month combinations are not length 2 and are not tuples
+    """
+    if date_tuples is None or isinstance(date_tuples, pd.MultiIndex):
+        return date_tuples
+    if isinstance(date_tuples, tuple):
+        date_tuples = [date_tuples]
+
+    for date_tuple in date_tuples:
+        if not (isinstance(date_tuple, tuple) and len(date_tuple) == 2):
+            raise ValueError(
+                f"The input to `{name}` must contain tuple(s) of length 2 for"
+                " (year, month) combination(s)."
+            )
+
+    return pd.MultiIndex.from_tuples(date_tuples, names=["year", "month"])
 
 
 def load_weather(value: str | Path | pd.DataFrame) -> pd.DataFrame:
@@ -159,6 +198,38 @@ class Project(FromDictMixin):
             Interest rate paid on the cash flows. Defaults to None.
         reinvestment_rate : float, optional
             Interest rate paid on the cash flows upon reinvestment. Defaults to None.
+        orbit_start_date : str | None
+            The date to use for installation phase start timings that are set to "0" in the
+            ``install_phases`` configuration. If None the raw configuration data will be used.
+            Defaults to None.
+        soft_capex_date : tuple[int, int] | list[tuple[int, int]] | None, optional
+            The date(s) where the ORBIT soft CapEx costs should be applied as a tuple of year and
+            month, for instance: ``(2020, 1)`` for January 2020. Alternatively multiple dates can be
+            set, which evenly divides the cost over all the dates, by providing a list of year and
+            month combinations, for instance, a semi-annual 2 year cost starting in 2020 would look
+            like: ``[(2020, 1), (2020, 7), (2021, 1), (2021, 7)]``. If None is provided, then the
+            CapEx date will be the same as the start of the installation. Defaults to None
+        project_capex_date : tuple[int, int] | list[tuple[int, int]] | None, optional
+            The date(s) where the ORBIT project CapEx costs should be applied as a tuple of year and
+            month, for instance: ``(2020, 1)`` for January 2020. Alternatively multiple dates can be
+            set, which evenly divides the cost over all the dates, by providing a list of year and
+            month combinations, for instance, a semi-annual 2 year cost starting in 2020 would look
+            like: ``[(2020, 1), (2020, 7), (2021, 1), (2021, 7)]``. If None is provided, then the
+            CapEx date will be the same as the start of the installation. Defaults to None
+        system_capex_date : tuple[int, int] | list[tuple[int, int]] | None, optional
+            The date(s) where the ORBIT system CapEx costs should be applied as a tuple of year and
+            month, for instance: ``(2020, 1)`` for January 2020. Alternatively multiple dates can be
+            set, which evenly divides the cost over all the dates, by providing a list of year and
+            month combinations, for instance, a semi-annual 2 year cost starting in 2020 would look
+            like: ``[(2020, 1), (2020, 7), (2021, 1), (2021, 7)]``. If None is provided, then the
+            CapEx date will be the same as the start of the installation. Defaults to None.
+        turbine_capex_date : tuple[int, int] | list[tuple[int, int]] | None, optional
+            The date(s) where the ORBIT turbine CapEx costs should be applied as a tuple of year and
+            month, for instance: ``(2020, 1)`` for January 2020. Alternatively multiple dates can be
+            set, which evenly divides the cost over all the dates, by providing a list of year and
+            month combinations, for instance, a semi-annual 2 year cost starting in 2020 would look
+            like: ``[(2020, 1), (2020, 7), (2021, 1), (2021, 7)]``. If None is provided, then the
+            CapEx date will be the same as the start of the installation. Defaults to None.
     """
 
     library_path: Path = field(converter=resolve_path)
@@ -172,6 +243,7 @@ class Project(FromDictMixin):
     floris_config: str | Path | dict | None = field(
         default=None, validator=attrs.validators.instance_of((str, Path, dict, None))
     )
+    orbit_start_date: str | None = field(default=None)
     orbit_weather_cols: list[str] = field(
         default=["windspeed", "wave_height"],
         validator=attrs.validators.deep_iterable(
@@ -200,6 +272,18 @@ class Project(FromDictMixin):
     )
     reinvestment_rate: float = field(
         default=None, validator=attrs.validators.instance_of((float, type(None)))
+    )
+    soft_capex_date: tuple[int, int] | list[tuple[int, int]] | None = field(
+        default=None, converter=partial(convert_to_multi_index, name="soft_capex_date")
+    )
+    project_capex_date: tuple[int, int] | list[tuple[int, int]] | None = field(
+        default=None, converter=partial(convert_to_multi_index, name="project_capex_date")
+    )
+    system_capex_date: tuple[int, int] | list[tuple[int, int]] | None = field(
+        default=None, converter=partial(convert_to_multi_index, name="system_capex_date")
+    )
+    turbine_capex_date: tuple[int, int] | list[tuple[int, int]] | None = field(
+        default=None, converter=partial(convert_to_multi_index, name="turbine_capex_date")
     )
 
     # Internally created attributes, aka, no user inputs to these
@@ -347,6 +431,11 @@ class Project(FromDictMixin):
             self.orbit_config_dict = load_config(orbit_config)
         else:
             self.orbit_config_dict = self.orbit_config
+
+        if self.orbit_start_date is not None:
+            for phase, start in self.orbit_config_dict["install_phases"].items():
+                if start == 0:
+                    self.orbit_config_dict["install_phases"][phase] = self.orbit_start_date
 
         assert isinstance(self.weather, pd.DataFrame)  # mypy helper
         self.orbit = ProjectManager(
@@ -1072,7 +1161,7 @@ class Project(FromDictMixin):
 
         if breakdown:
             return capex
-        return capex.values[0, 0]
+        return capex.values[0, 1]
 
     def array_system_total_cable_length(self):
         """Calculates the total length of the cables in the array system, in km.
@@ -1274,12 +1363,12 @@ class Project(FromDictMixin):
                 )
 
         if self.floris_results_type == "wind_rose":
-            revenue = self.energy_production(frequency=frequency) / 1000 * offtake_price  # MWh
+            revenue = self.energy_production(frequency=frequency) * 1000 * offtake_price  # MWh
         else:
-            revenue = self.energy_production(frequency=frequency) / 1000 * offtake_price  # MWh
+            revenue = self.energy_production(frequency=frequency) * 1000 * offtake_price  # MWh
 
-        if frequency == "project":
-            revenue = revenue.values[0, 0]
+        if frequency != "project":
+            revenue.columns = ["Revenue"]
 
         if per_capacity is None:
             return revenue
@@ -1287,17 +1376,228 @@ class Project(FromDictMixin):
         per_capacity = per_capacity.lower()
         return revenue / self.capacity(per_capacity)
 
+    def cash_flow(
+        self,
+        frequency: str = "month-year",
+        installation_start_date: str | None = None,
+        soft_capex_date: tuple[int, int] | list[tuple[int, int]] | None = None,
+        project_capex_date: tuple[int, int] | list[tuple[int, int]] | None = None,
+        system_capex_date: tuple[int, int] | list[tuple[int, int]] | None = None,
+        turbine_capex_date: tuple[int, int] | list[tuple[int, int]] | None = None,
+        offtake_price: int | float | None = None,
+        breakdown: bool = False,
+    ) -> pd.DataFrame:
+        """Calculates the monthly cashflows into a DataFrame, that is returned at the desired
+        frequency, and with or without a high level breakdown, allowing for custom starting dates
+        for the varying CapEx costs.
+
+        Parameters
+        ----------
+        frequency : str, optional
+            The desired frequency of the outputs, where "month-year" is the monthly total over the
+            course of a project's life. Must be one of: "project", "annual", "month-year". Defaults
+            to "month-year"
+        installation_start_date : str | None, optional
+            If not provided in the ``Project`` configuration as ``orbit_start_date``, an
+            installation starting date that is parseable from a string by Pandas may be provided
+            here. Defaults to None
+        soft_capex_date : tuple[int, int] | list[tuple[int, int]] | None, optional
+            The date(s) where the ORBIT soft CapEx costs should be applied as a tuple of year and
+            month, for instance: ``(2020, 1)`` for January 2020. Alternatively multiple dates can be
+            set, which evenly divides the cost over all the dates, by providing a list of year and
+            month combinations, for instance, a semi-annual 2 year cost starting in 2020 would look
+            like: ``[(2020, 1), (2020, 7), (2021, 1), (2021, 7)]``. If None is provided, then the
+            CapEx date will be the same as the start of the installation. Defaults to None
+        project_capex_date : tuple[int, int] | list[tuple[int, int]] | None, optional
+            The date(s) where the ORBIT project CapEx costs should be applied as a tuple of year and
+            month, for instance: ``(2020, 1)`` for January 2020. Alternatively multiple dates can be
+            set, which evenly divides the cost over all the dates, by providing a list of year and
+            month combinations, for instance, a semi-annual 2 year cost starting in 2020 would look
+            like: ``[(2020, 1), (2020, 7), (2021, 1), (2021, 7)]``. If None is provided, then the
+            CapEx date will be the same as the start of the installation. Defaults to None
+        system_capex_date : tuple[int, int] | list[tuple[int, int]] | None, optional
+            The date(s) where the ORBIT system CapEx costs should be applied as a tuple of year and
+            month, for instance: ``(2020, 1)`` for January 2020. Alternatively multiple dates can be
+            set, which evenly divides the cost over all the dates, by providing a list of year and
+            month combinations, for instance, a semi-annual 2 year cost starting in 2020 would look
+            like: ``[(2020, 1), (2020, 7), (2021, 1), (2021, 7)]``. If None is provided, then the
+            CapEx date will be the same as the start of the installation. Defaults to None.
+        turbine_capex_date : tuple[int, int] | list[tuple[int, int]] | None, optional
+            The date(s) where the ORBIT turbine CapEx costs should be applied as a tuple of year and
+            month, for instance: ``(2020, 1)`` for January 2020. Alternatively multiple dates can be
+            set, which evenly divides the cost over all the dates, by providing a list of year and
+            month combinations, for instance, a semi-annual 2 year cost starting in 2020 would look
+            like: ``[(2020, 1), (2020, 7), (2021, 1), (2021, 7)]``. If None is provided, then the
+            CapEx date will be the same as the start of the installation. Defaults to None.
+        offtake_price : int | float | None, optional
+            The price paid for the energy produced, by default None.
+        breakdown : bool, optional
+            If True, all the CapEx categories will be provided as a column, in addition to the OpEx
+            and Revenue columns, and the total cost in "cash_flow", othwerwise, only the "cash_flow"
+            column will be provided. Defaults to False.
+
+        Returns
+        -------
+        pd.DataFrame
+            Returns the pandas DataFrame of the cashflow with a fixed monthly or annual interval,
+            or a project total for the desired categories.
+
+        Raises
+        ------
+        ValueError
+            Raised if ``frequency`` is not one of: "project", "annual", "month-year".
+        TypeError
+            Raised if a valid starting date can't be found for the installation.
+        """
+        # Check the frequency input
+        opts = ("project", "annual", "month-year")
+        if frequency not in opts:
+            raise ValueError(f"`frequency` must be one of {opts}.")  # type: ignore
+
+        # Find a valid starting date for the installation processes
+        if (start_date := installation_start_date) is None:
+            if (start_date := self.orbit_start_date) is None:
+                start_date = min(el for el in self.orbit_config_dict["install_phases"].values())
+        try:
+            start_date = pd.to_datetime(start_date)
+        except pd.errors.ParserError:
+            raise TypeError(
+                "Please provide a valid `instatllation_start_date` if no configuration-based"
+                " starting dates were provided."
+            )
+
+        # Create the cost dataframes that have a MultiIndex with "year" and "month" columns
+
+        # Get the installation costs and add in each installation phase's port costs
+        capex_installation = pd.DataFrame(self.orbit.logs)
+        starts = capex_installation.loc[
+            capex_installation.message == "SIMULATION START", ["phase", "time"]
+        ]
+        phase_df_list = []
+        for name, time in starts.values:
+            phase = self.orbit._phases[name]
+            total_days = phase.total_phase_time / 24
+            n_days, remainder = divmod(total_days, 1)
+            day_cost = phase.port_costs / total_days
+            phase_daily_port = np.repeat(day_cost, n_days).tolist() + [day_cost * remainder]
+            timing = (np.arange(n_days + 1) * 24 + time).tolist()
+            phase_df = pd.DataFrame(zip(timing, phase_daily_port), columns=["time", "cost"])
+            phase_df["phase"] = name
+            phase_df_list.append(phase_df)
+
+        capex_installation = pd.concat([capex_installation, *phase_df_list], axis=0).sort_values(
+            "time"
+        )
+
+        # Put the installation CapEx in a format that matches the OpEx output
+        capex_installation["datetime"] = start_date + pd.to_timedelta(
+            capex_installation.time, unit="hours"
+        )
+        capex_installation = (
+            capex_installation.assign(
+                year=capex_installation.datetime.dt.year,
+                month=capex_installation.datetime.dt.month,
+            )[["year", "month", "cost"]]
+            .groupby(["year", "month"])
+            .sum()
+            .rename(columns={"cost": "installation_capex"})
+        )
+
+        # Check the date values, ensuring a the installation start is the default if none provided
+        default_start = [capex_installation.index[0]]
+        if soft_capex_date is None:
+            if (soft_capex_date := self.soft_capex_date) is None:
+                soft_capex_date = default_start
+
+        if project_capex_date is None:
+            if (project_capex_date := self.project_capex_date) is None:
+                project_capex_date = default_start
+
+        if system_capex_date is None:
+            if (system_capex_date := self.system_capex_date) is None:
+                system_capex_date = default_start
+
+        if turbine_capex_date is None:
+            if (turbine_capex_date := self.turbine_capex_date) is None:
+                turbine_capex_date = default_start
+
+        # Convert the dates to a pandas MultiIndex to be compatible with concatenating later
+        soft_capex_date_ix = convert_to_multi_index(soft_capex_date, "soft_capex_date")
+        project_capex_date_ix = convert_to_multi_index(project_capex_date, "project_capex_date")
+        system_capex_date_ix = convert_to_multi_index(system_capex_date, "system_capex_date")
+        turbine_capex_date_ix = convert_to_multi_index(turbine_capex_date, "turbine_capex_date")
+
+        # Create the remaining CapEx dataframes in the OpEx format
+        capex_soft = pd.DataFrame(
+            self.orbit.soft_capex / len(soft_capex_date_ix),
+            index=soft_capex_date_ix,
+            columns=["soft_capex"],
+        )
+        capex_project = pd.DataFrame(
+            self.orbit.project_capex / len(project_capex_date_ix),
+            index=project_capex_date_ix,
+            columns=["project_capex"],
+        )
+        capex_system = pd.DataFrame(
+            self.orbit.system_capex / len(system_capex_date_ix),
+            index=system_capex_date_ix,
+            columns=["system_capex"],
+        )
+        capex_turbine = pd.DataFrame(
+            self.orbit.turbine_capex / len(turbine_capex_date_ix),
+            index=turbine_capex_date_ix,
+            columns=["turbine_capex"],
+        )
+
+        # Combine the CapEx, Opex, and Revenue times and ensure their signs are correct
+        cost_df = reduce(
+            lambda x, y: x.join(y, how="outer"),
+            [
+                capex_installation,
+                capex_soft,
+                capex_project,
+                capex_system,
+                capex_turbine,
+                self.opex(frequency="month-year"),
+            ],
+        ).fillna(0)
+        cost_df *= -1.0
+        cost_df = cost_df.join(
+            self.revenue(frequency="month-year", offtake_price=offtake_price)
+        ).fillna(0)
+
+        # Fill in the missing time periods to ensure a fixed-interval cash flow
+        years = cost_df.index.get_level_values("year")
+        years = list(range(min(years), max(years)))
+        missing_ix = set(product(years, range(1, 13))).difference(cost_df.index.values)
+        if missing_ix:
+            cost_df = pd.concat(
+                [
+                    cost_df,
+                    pd.DataFrame(
+                        0,
+                        index=convert_to_multi_index(list(missing_ix), "missing"),
+                        columns=cost_df.columns,
+                    ),
+                ]
+            ).sort_index()
+        cost_df["cash_flow"] = cost_df.sum(axis=1).sort_index()
+        if breakdown:
+            return cost_df
+        return cost_df.cash_flow.to_frame()
+
     def npv(
         self,
         frequency: str = "project",
         discount_rate: float | None = None,
         offtake_price: float | None = None,
+        **kwargs: dict,
     ) -> pd.DataFrame:
         """Calculates the net present value of the windfarm at a project, annual, or
         monthly resolution given a base discount rate and offtake price.
 
-        .. note:: This function will be improved over time to incorporate more of the
-            financial parameter at play, such as PPAs.
+        .. note:: NPV is implemented via
+            https://numpy.org/numpy-financial/latest/npv.html#numpy_financial.npv.
 
         Parameters
         ----------
@@ -1307,6 +1607,8 @@ class Project(FromDictMixin):
             The rate of return that could be earned on alternative investments. Defaults to None.
         offtake_price : float, optional
             Price of energy, per MWh. Defaults to None.
+        kwargs : dict, optional
+            See :py:meth:`cash_flow` for details on starting date options.
 
         Returns
         -------
@@ -1334,47 +1636,22 @@ class Project(FromDictMixin):
                     " keyword arguments."
                 )
 
-        if self.floris_results_type == "wind_rose":
-            if frequency not in ("project", "annual"):
-                raise ValueError(
-                    "Wind rose analyses only allow for 'annual' and 'project' level"
-                    " energy production."
-                )
-
-            # Gather the OpEx, and revenues
-            expenditures = self.wombat.metrics.opex("annual")
-            production = self.energy_production("annual")
-            revenue: pd.DataFrame = production / 1000 * offtake_price  # MWh
-
-        else:
-            # Gather the OpEx, and revenues
-            expenditures = self.wombat.metrics.opex("month-year")
-            production = self.energy_production("month-year")
-            revenue = production / 1000 * offtake_price  # MWh
-
-        # Instantiate the NPV with the required calculated data and compute the result
-        # change the column names according to the analysis type used
-        npv = revenue.join(expenditures).rename(
-            columns={"Energy Production (GWh)": "revenue", "wind_farm": "revenue"}
-        )
-        N = npv.shape[0]
-        npv.loc[:, "discount"] = np.full(N, 1 + discount_rate) ** np.arange(N)
-        npv.loc[:, "NPV"] = (npv.revenue.values - npv.OpEx.values) / npv.discount.values
-
-        # Aggregate the results to the required resolution
-        if frequency == "project":
-            return npv.reset_index().sum().T.NPV
-        elif frequency == "annual":
-            return npv.reset_index().groupby("year").sum()[["NPV"]]
-        elif frequency == "monthly":
-            return npv.reset_index().groupby("month").sum()[["NPV"]]
-        return npv[["NPV"]]
+        cashflow = self.cash_flow(
+            installation_start_date=kwargs.get("installation_start_date", None),  # type: ignore
+            project_capex_date=kwargs.get("project_capex_date", None),  # type: ignore
+            soft_capex_date=kwargs.get("soft_capex_date", None),  # type: ignore
+            system_capex_date=kwargs.get("system_capex_date", None),  # type: ignore
+            turbine_capex_date=kwargs.get("turbine_capex_date", None),  # type: ignore
+            offtake_price=offtake_price,
+        ).values.flatten()
+        return npf.npv(discount_rate, cashflow)
 
     def irr(
         self,
         offtake_price: float | None = None,
         finance_rate: float | None = None,
         reinvestment_rate: float | None = None,
+        **kwargs,
     ) -> float:
         """Calculates the Internal Rate of Return using the ORBIT CapEx as the initial
         investment in conjunction with the WHaLE monthly cash flows.
@@ -1393,6 +1670,8 @@ class Project(FromDictMixin):
         reinvestment_rate : float, optional
             Interest rate received on the cash flows upon reinvestment.  Only used if
             :py:attr:`finance_rate` is also provided.
+        kwargs : dict, optional
+            See :py:meth:`cash_flow` for details on starting date options.
 
         Returns
         -------
@@ -1413,14 +1692,17 @@ class Project(FromDictMixin):
         if reinvestment_rate is None:
             reinvestment_rate = self.reinvestment_rate
 
-        initial = self.orbit.total_capex
-        revenues = self.revenue(frequency="month-year", offtake_price=offtake_price).values
-        expenses = self.opex(frequency="month-year").values  # type: ignore
-
-        values = [initial] + (revenues - expenses).flatten().tolist()
+        cashflow = self.cash_flow(
+            installation_start_date=kwargs.get("installation_start_date", None),
+            project_capex_date=kwargs.get("project_capex_date", None),
+            soft_capex_date=kwargs.get("soft_capex_date", None),
+            system_capex_date=kwargs.get("system_capex_date", None),
+            turbine_capex_date=kwargs.get("turbine_capex_date", None),
+            offtake_price=offtake_price,
+        ).values.flatten()
         if finance_rate is None or reinvestment_rate is None:
-            return npf.irr(values)
-        return npf.mirr(values, finance_rate, reinvestment_rate)
+            return npf.irr(cashflow)
+        return npf.mirr(cashflow, finance_rate, reinvestment_rate)
 
     def lcoe(self, units: str = "mw") -> float:
         """Calculates the levelized cost of energy (LCOE) as the (CapEx + OpEx) / energy
@@ -1451,7 +1733,7 @@ class Project(FromDictMixin):
             energy = self.energy_production()
         else:
             raise ValueError("`units` must be one of 'gw', 'mw', or 'kw' for the base energy unit.")
-        return energy / costs
+        return costs / energy
 
     def generate_report(
         self,
