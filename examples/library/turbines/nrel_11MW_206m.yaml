@@ -1,9 +1,9 @@
 turbine_type: 'nrel_11MW_206m'
 generator_efficiency: 0.93
-hub_height: 132.0
+hub_height: 128.0
 pP: 1.88
 pT: 1.88
-rotor_diameter: 205.523721259
+rotor_diameter: 205.523721258642
 TSR: 8.0
 ref_density_cp_ct: 1.225
 power_thrust_table:
@@ -279,4 +279,3 @@ power_thrust_table:
     - 30
     - 30.001
     - 50
-

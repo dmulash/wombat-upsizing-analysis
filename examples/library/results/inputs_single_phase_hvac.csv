@@ -1,0 +1,20 @@
+Inputs,Revolution Wind,CVOW C,Kitty Hawk North,Marwin,Momentum Wind,Future Development,US Wind,Park City,Commonwealth,New England,Empire Wind 1,Empire Wind 2,Atlantic Shores South 1,Atlantic Shores South 2,Mayflower Wind 1
+FCR,0.0582,0.0582,0.0582,0.0582,0.0582,0.0582,0.0582,0.0582,0.0582,0.0582,0.0582,0.0582,0.0582,0.0582,0.0582
+Offtake price ($/MWh),99.03,89.06,89.06,131.9,71.6,86.7,86.7,79.9,72,75.07,83.3,107.5,58.8,58.8,80
+Lease Area Price ($),1903181,1971276,10592835,10553535,10553535,10553535,10553535,182336,182336,182336,48611290,48611290,1205011,1205011,154525000
+Discount rate (%),0.025,0.025,0.025,0.025,0.025,0.025,0.025,0.025,0.025,0.025,0.025,0.025,0.025,0.025,0.025
+# Turbines,79,176,69,21,55,38,114,50,78,128,54,85,136,64,80
+Turbine Rating (MW),11,15,15,15,15,15,15,16,16,16,15,15,15,15,15
+Project Capacity (MW),869,2640,1035,315,825,570,1710,800,1248,2048,810,1275,2040,960,1200
+# OSS,2,3,1,1,2,1,4,1,1,2,1,1,2,1,1
+Substructure type,??,??,??,??,??,??,??,??,??,??,??,??,??,??,??
+Row spacing (rotor diameters),not used for custom layouts,not used for custom layouts,not used for custom layouts,not used for custom layouts,not used for custom layouts,not used for custom layouts,not used for custom layouts,not used for custom layouts,not used for custom layouts,not used for custom layouts,not used for custom layouts,not used for custom layouts,not used for custom layouts,not used for custom layouts,not used for custom layouts
+Turbine spacing (rotor diameters),not used for custom layouts,not used for custom layouts,not used for custom layouts,not used for custom layouts,not used for custom layouts,not used for custom layouts,not used for custom layouts,not used for custom layouts,not used for custom layouts,not used for custom layouts,not used for custom layouts,not used for custom layouts,not used for custom layouts,not used for custom layouts,not used for custom layouts
+Depth (m),34.7,28.64,34.93,25.04,25.04,25.04,25.04,51.1,51.1,51.1,34.9,34.9,24.36,24.36,50.59
+Mean wind speed (m/s),8.996010967057243,8.168117143172747,8.371018229890675,8.587894570207704,7.261211463442823,7.261211463442823,7.261211463442823,9.15166971905148,8.996010967057243,9.15166971905148,7.547582618743443,8.176109289572958,7.996682151675415,7.996682151675415,9.15166971905148
+Distance to landfall (km),74.31,58,89,41,41,41,41,93,93,93,74,54,31,99,88
+Distance to port (km),82,108,141,252,252,252,252,100,100,100,75,75,147,147,208
+Interconnection distance (km),2,8,9,17,17,17,17,17,17,17,1,9,19,19,4
+# of POIs,??,??,??,??,??,??,??,??,??,??,??,??,??,??,??
+Export cable type,['XLPE_1900mm_275kV'],['XLPE_1000m_220kV'],['XLPE_1900mm_275kV'],['XLPE_1900mm_275kV'],['XLPE_1900mm_275kV'],['XLPE_1900mm_275kV'],['XLPE_1900mm_275kV'],['XLPE_1000m_220kV'],['XLPE_1000m_220kV'],['XLPE_1000m_220kV'],['XLPE_1000m_220kV'],['XLPE_1000m_220kV'],['XLPE_1900mm_275kV'],['XLPE_1900mm_275kV'],['XLPE_1900mm_275kV']
+Array cable type,"['XLPE_185mm_66kV', 'XLPE_630mm_66kV']","['XLPE_185mm_66kV', 'XLPE_630mm_66kV']","['XLPE_185mm_66kV', 'XLPE_630mm_66kV']","['XLPE_185mm_66kV', 'XLPE_630mm_66kV']","['XLPE_185mm_66kV', 'XLPE_630mm_66kV']","['XLPE_185mm_66kV', 'XLPE_630mm_66kV']","['XLPE_185mm_66kV', 'XLPE_630mm_66kV']","['XLPE_185mm_66kV', 'XLPE_500mm_132kV', 'XLPE_630mm_66kV']","['XLPE_185mm_66kV', 'XLPE_500mm_132kV', 'XLPE_630mm_66kV']","['XLPE_185mm_66kV', 'XLPE_500mm_132kV', 'XLPE_630mm_66kV']","['XLPE_185mm_66kV', 'XLPE_630mm_66kV']","['XLPE_185mm_66kV', 'XLPE_630mm_66kV']","['XLPE_185mm_66kV', 'XLPE_500mm_132kV', 'XLPE_630mm_66kV']","['XLPE_185mm_66kV', 'XLPE_500mm_132kV', 'XLPE_630mm_66kV']","['XLPE_185mm_66kV', 'XLPE_630mm_66kV']"

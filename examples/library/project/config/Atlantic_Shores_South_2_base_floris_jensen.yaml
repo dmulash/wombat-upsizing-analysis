@@ -1,0 +1,265 @@
+description: Atlantic Shores South 1 using Jensen-Jimenez
+farm:
+  layout_x:
+  - 6874.108494
+  - 4480.006241
+  - 3282.955142
+  - 2188.636753
+  - 1094.318367
+  - 0.0
+  - 6976.841251
+  - 8071.159631
+  - 9165.478032
+  - 10259.79636
+  - 11354.11476
+  - 12448.43313
+  - 8173.892364
+  - 9268.210762
+  - 10362.52913
+  - 11456.84753
+  - 11559.58028
+  - 10465.26184
+  - 5985.255626
+  - 6087.988366
+  - 6190.721086
+  - 7285.039515
+  - 4890.937232
+  - 4993.669989
+  - 3899.351605
+  - 2805.033232
+  - 1710.714887
+  - 616.396498
+  - 7182.306722
+  - 8379.357865
+  - 8482.090627
+  - 9576.409007
+  - 3796.618871
+  - 2702.300473
+  - 1607.982141
+  - 513.66372
+  - 7079.574038
+  - 8276.625124
+  - 9370.943473
+  - 9473.676294
+  - 10567.99461
+  - 11662.31297
+  - 4788.204458
+  - 3693.886162
+  - 2599.567784
+  - 1505.249337
+  - 410.931012
+  - 5882.522913
+  - 3591.153354
+  - 2496.835038
+  - 1402.516605
+  - 308.198248
+  - 4685.471714
+  - 4582.73896
+  - 3488.420666
+  - 2394.102281
+  - 1299.783907
+  - 205.465474
+  - 5779.790099
+  - 5677.057404
+  - 3385.687885
+  - 2291.369475
+  - 1197.051116
+  - 102.732737
+  layout_y:
+  - 9119.3198
+  - 12458.31511
+  - 14127.81283
+  - 13934.85498
+  - 13741.89716
+  - 13548.93925
+  - 7256.86429
+  - 7449.82208
+  - 7642.78001
+  - 7835.73778
+  - 8028.69563
+  - 8221.65359
+  - 5587.36662
+  - 5780.32441
+  - 5973.28228
+  - 6166.24015
+  - 4303.7846
+  - 4110.82673
+  - 5201.45094
+  - 3338.99535
+  - 1476.53987
+  - 1669.49764
+  - 5008.493
+  - 3146.03752
+  - 2953.07968
+  - 2760.12181
+  - 2567.16388
+  - 2374.2061
+  - 3531.95321
+  - 1862.45558
+  - 0.0
+  - 192.95786
+  - 4815.53515
+  - 4622.57736
+  - 4429.61949
+  - 4236.66163
+  - 5394.40876
+  - 3724.91112
+  - 3917.86887
+  - 2055.41339
+  - 2248.37122
+  - 2441.32907
+  - 6870.9486
+  - 6677.99075
+  - 6485.03283
+  - 6292.07503
+  - 6099.11711
+  - 7063.9064
+  - 8540.44626
+  - 8347.48833
+  - 8154.53051
+  - 7961.57265
+  - 8733.40409
+  - 10595.85959
+  - 10402.90179
+  - 10209.94388
+  - 10016.98604
+  - 9824.02816
+  - 8926.36197
+  - 10788.81742
+  - 12265.35724
+  - 12072.39946
+  - 11879.44163
+  - 11686.48372
+  turbine_library_path: /Users/rhammond/Documents/GitHub/WHaLE/examples/library/turbines
+  turbine_type:
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+floris_version: v3.0.0
+flow_field:
+  air_density: 1.225
+  reference_wind_height: -1
+  turbulence_intensity: 0.06
+  wind_directions:
+  - 270.0
+  wind_shear: 0.12
+  wind_speeds:
+  - 9.483131
+  wind_veer: 0.0
+logging:
+  console:
+    enable: true
+    level: WARNING
+  file:
+    enable: false
+    level: WARNING
+name: Atlantic Shores South 2 Jensen
+solver:
+  turbine_grid_points: 3
+  type: turbine_grid
+wake:
+  enable_secondary_steering: true
+  enable_transverse_velocities: true
+  enable_yaw_added_recovery: true
+  model_strings:
+    combination_model: sosfs
+    deflection_model: jimenez
+    turbulence_model: crespo_hernandez
+    velocity_model: jensen
+  wake_deflection_parameters:
+    gauss:
+      ad: 0.0
+      alpha: 0.58
+      bd: 0.0
+      beta: 0.077
+      dm: 1.0
+      ka: 0.38
+      kb: 0.004
+    jimenez:
+      ad: 0.0
+      bd: 0.0
+      kd: 0.05
+  wake_turbulence_parameters:
+    crespo_hernandez:
+      ai: 0.8
+      constant: 0.5
+      downstream: -0.32
+      initial: 0.1
+  wake_velocity_parameters:
+    cc:
+      a_f: 3.11
+      a_s: 0.179367259
+      alpha_mod: 1.0
+      b_f: -0.68
+      b_s: 0.0118889215
+      c_f: 2.41
+      c_s1: 0.0563691592
+      c_s2: 0.13290157
+    gauss:
+      alpha: 0.58
+      beta: 0.077
+      ka: 0.38
+      kb: 0.004
+    jensen:
+      we: 0.05

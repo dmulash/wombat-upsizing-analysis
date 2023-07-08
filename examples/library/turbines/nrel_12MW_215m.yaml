@@ -3,7 +3,7 @@ generator_efficiency: 0.93
 hub_height: 132.0
 pP: 1.88
 pT: 1.88
-rotor_diameter: 214.6625258
+rotor_diameter: 214.66252583998
 TSR: 8.0
 ref_density_cp_ct: 1.225
 power_thrust_table:
@@ -279,4 +279,3 @@ power_thrust_table:
     - 30
     - 30.001
     - 50
-

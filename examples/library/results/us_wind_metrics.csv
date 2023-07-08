@@ -1,0 +1,27 @@
+Metrics,US Wind
+# Turbines,114.0
+Turbine Rating (MW),15.0
+Project Capacity (MW),1710.0
+# OSS,4.0
+Total Export Cable Length (km),232.10016
+Total Array Cable Length (km),200.55840317511957
+FCR (%),0.0582
+Offtake Price ($/MWh),86.7
+CapEx ($),5192854896.015973
+CapEx per kW ($/kW),3036.757249132148
+System CapEx for Export Cables ($),394570272.0
+Installation CapEx for Export Cables ($),22794893.50731652
+CapEx Without Export Cables ($),4775489730.5086565
+OpEx ($),1729583938.297869
+OpEx per kW ($/kW),1011.4525954958298
+Annual OpEx per kW ($/kW),48.16440930932523
+Energy Availability (%),0.9272035990583841
+Gross Capacity Factor (%),0.3484912993929096
+Net Capacity Factor Without Unmodeled Losses (%),0.3231242959284961
+Annual Losses (MWh),902719.669109767
+AEP (MWh),4321626.908684001
+AEP per kW (MWh/kW),2.5272671980608195
+Net Capacity Factor With All Losses (%),0.288275165989199
+LCOE ($/MWh),88.99085992228507
+IRR (%),0.002080925232030184
+NPV ($),-2537913982.6514444

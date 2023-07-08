@@ -1,0 +1,23 @@
+name: empire_wind_2
+library: library
+weather: boem_era5_40.5_-73.0.csv
+service_equipment:
+  - ctv1.yaml
+  - ctv2.yaml
+  - ctv3.yaml
+  - ctv4.yaml
+  - ctv5.yaml
+  - ctv6.yaml
+  - ctv7.yaml
+  - clv.yaml
+  - jackup.yaml
+  - dsv.yaml
+layout: empire_wind_2_layout_base.csv
+inflation_rate: 0
+fixed_costs: Empire_Wind_2_fixed_costs.yaml
+workday_start: 7
+workday_end: 19
+start_year: 2000
+end_year: 2020
+project_capacity: 1275
+port_distance: 75

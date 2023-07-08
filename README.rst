@@ -62,4 +62,3 @@ After installation, the package can imported:
    python
    import whale
    whale.__version__
-

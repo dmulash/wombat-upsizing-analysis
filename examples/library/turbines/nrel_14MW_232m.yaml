@@ -1,9 +1,9 @@
 turbine_type: 'nrel_14MW_232m'
 generator_efficiency: 0.93
-hub_height: 132.0
+hub_height: 141.0
 pP: 1.88
 pT: 1.88
-rotor_diameter: 231.862927939
+rotor_diameter: 231.862027939031
 TSR: 8.0
 ref_density_cp_ct: 1.225
 power_thrust_table:
@@ -279,4 +279,3 @@ power_thrust_table:
     - 30
     - 30.001
     - 50
-

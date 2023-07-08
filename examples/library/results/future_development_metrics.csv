@@ -1,0 +1,27 @@
+Metrics,Future Development
+# Turbines,38.0
+Turbine Rating (MW),15.0
+Project Capacity (MW),570.0
+# OSS,1.0
+Total Export Cable Length (km),116.05008
+Total Array Cable Length (km),71.94020882411014
+FCR (%),0.0582
+Offtake Price ($/MWh),86.7
+CapEx ($),1906470115.5788267
+CapEx per kW ($/kW),3344.6844132961874
+System CapEx for Export Cables ($),197285136.0
+Installation CapEx for Export Cables ($),15865772.196124207
+CapEx Without Export Cables ($),1693319207.3827024
+OpEx ($),1254221590.4896812
+OpEx per kW ($/kW),2200.3887552450547
+Annual OpEx per kW ($/kW),104.78041691643118
+Energy Availability (%),0.9099763287154427
+Gross Capacity Factor (%),0.36107319857486625
+Net Capacity Factor Without Unmodeled Losses (%),0.3285493229990956
+Annual Losses (MWh),342957.5349669299
+AEP (MWh),1461364.4405446646
+AEP per kW (MWh/kW),2.5637972641134468
+Net Capacity Factor With All Losses (%),0.29244200314160707
+LCOE ($/MWh),116.79591594923366
+IRR (%),-0.0006039938031228154
+NPV ($),-959081091.6765577

@@ -1,0 +1,27 @@
+Metrics,CVOW C
+# Turbines,176.0
+Turbine Rating (MW),15.0
+Project Capacity (MW),2640.0
+# OSS,3.0
+Total Export Cable Length (km),594.25776
+Total Array Cable Length (km),354.9486935037968
+FCR (%),0.0582
+Offtake Price ($/MWh),89.06
+CapEx ($),7813031773.101726
+CapEx per kW ($/kW),2959.481732235502
+System CapEx for Export Cables ($),505119095.99999994
+Installation CapEx for Export Cables ($),29822186.63800744
+CapEx Without Export Cables ($),7278090490.463718
+OpEx ($),1780269423.3567078
+OpEx per kW ($/kW),674.3444785442075
+Annual OpEx per kW ($/kW),32.111641835438455
+Energy Availability (%),0.949770323339086
+Gross Capacity Factor (%),0.4259231747210991
+Net Capacity Factor Without Unmodeled Losses (%),0.4045249956892868
+Annual Losses (MWh),1481028.2291651473
+AEP (MWh),8376751.905090687
+AEP per kW (MWh/kW),3.173012085261624
+Net Capacity Factor With All Losses (%),0.3619326782171754
+LCOE ($/MWh),64.40362443015881
+IRR (%),0.004895469652145934
+NPV ($),-3663664043.2027745

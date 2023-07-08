@@ -1,0 +1,27 @@
+Metrics,Mayflower Wind
+# Turbines,147.0
+Turbine Rating (MW),15.0
+Project Capacity (MW),2205.0
+# OSS,2.0
+Total Export Cable Length (km),588.25295
+Total Array Cable Length (km),386.9290152086386
+FCR (%),0.0582
+Offtake Price ($/MWh),64.56
+CapEx ($),7452923652.675224
+CapEx per kW ($/kW),3380.0107268368365
+System CapEx for Export Cables ($),625508599.0
+Installation CapEx for Export Cables ($),42817019.29222034
+CapEx Without Export Cables ($),6784598034.383004
+OpEx ($),2074591029.9834504
+OpEx per kW ($/kW),940.8576099698188
+Annual OpEx per kW ($/kW),44.80274333189613
+Energy Availability (%),0.9384288764634229
+Gross Capacity Factor (%),0.5189710157666646
+Net Capacity Factor Without Unmodeled Losses (%),0.48701241300733583
+Annual Losses (MWh),1621007.912062661
+AEP (MWh),8411179.276041469
+AEP per kW (MWh/kW),3.8145937759825252
+Net Capacity Factor With All Losses (%),0.4351153114306679
+LCOE ($/MWh),63.31457078194173
+IRR (%),0.0024318873031594634
+NPV ($),-3561844483.048864

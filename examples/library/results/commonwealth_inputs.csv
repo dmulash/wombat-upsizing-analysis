@@ -1,0 +1,20 @@
+Inputs,Commonwealth
+FCR,0.0582
+Offtake price ($/MWh),72
+Lease Area Price ($),182336
+Discount rate (%),0.025
+# Turbines,78
+Turbine Rating (MW),16
+Project Capacity (MW),1248
+# OSS,1
+Substructure type,??
+Row spacing (rotor diameters),not used for custom layouts
+Turbine spacing (rotor diameters),not used for custom layouts
+Depth (m),51.1
+Mean wind speed (m/s),8.996010967057243
+Distance to landfall (km),93
+Distance to port (km),100
+Interconnection distance (km),17
+# of POIs,??
+Export cable type,['XLPE_1000m_220kV']
+Array cable type,"['XLPE_185mm_66kV', 'XLPE_500mm_132kV', 'XLPE_630mm_66kV']"
