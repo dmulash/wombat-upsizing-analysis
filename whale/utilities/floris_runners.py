@@ -192,7 +192,7 @@ def calculate_monthly_wind_rose_results(
     turbine_power: np.ndarray,
     freq_monthly: dict[int, np.ndarray],
 ) -> pd.DataFrame:
-    """Calculate the turbine AEP contribution for each month of a year from the long term results.
+    """Calculate the turbine AEP contribution for each month of a year, in MWh.
 
     Parameters
     ----------

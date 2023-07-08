@@ -3,20 +3,19 @@ site:
   depth: 51.10
   distance: 100
   distance_to_landfall: 93
-  mean_windspeed: 9.949526
+  mean_windspeed: 8.99601096705724
 plant:
   layout: custom
   num_turbines: 78
   row_spacing: 7.47
   substation_distance: 1
   turbine_spacing: 7.47
-
 landfall:
   interconnection_distance: 17
   trench_length: 2
 turbine: 16MW
 oss_design:
-  num_substations: 2
+  num_substations: 1
 # Vessels
 array_cable_install_vessel: example_cable_lay_vessel
 export_cable_install_vessel: example_cable_lay_vessel
@@ -32,6 +31,7 @@ array_system_design:
   cables:
   - XLPE_630mm_66kV
   - XLPE_185mm_66kV
+  - XLPE_500mm_132kV
   location_data: commonwealth_layout_base
 export_system_design:
   cables: XLPE_1000m_220kV
@@ -48,7 +48,7 @@ design_phases:
 - OffshoreSubstationDesign
 install_phases:
   ArrayCableInstallation: 0
-  ExportCableInstallation: 1998
+  ExportCableInstallation: 0
   MonopileInstallation: !!python/tuple
   - ScourProtectionInstallation
   - 0.5
@@ -70,3 +70,4 @@ project_parameters:
   turbine_capex: 1500
   commissioning: 0.01
   decommissioning: 0.15
+  site_auction_price: 182336

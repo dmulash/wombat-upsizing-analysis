@@ -1,0 +1,27 @@
+Metrics,Ocean Wind 1
+# Turbines,98.0
+Turbine Rating (MW),12.0
+Project Capacity (MW),1176.0
+# OSS,3.0
+Total Export Cable Length (km),237.0791452956
+Total Array Cable Length (km),208.0795874943121
+FCR (%),0.0582
+Offtake Price ($/MWh),116.8
+CapEx ($),3778849941.333252
+CapEx per kW ($/kW),3213.3077732425613
+System CapEx for Export Cables ($),403034547.0025199
+Installation CapEx for Export Cables ($),25754444.827258386
+CapEx Without Export Cables ($),3350060949.5034738
+OpEx ($),1776457716.3631032
+OpEx per kW ($/kW),1510.5932962271286
+Annual OpEx per kW ($/kW),71.93301410605375
+Energy Availability (%),0.9191328720193918
+Gross Capacity Factor (%),0.47406592035168876
+Net Capacity Factor Without Unmodeled Losses (%),0.4358094286311316
+Annual Losses (MWh),883171.3168188985
+AEP (MWh),4004364.886405031
+AEP per kW (MWh/kW),3.405072182317203
+Net Capacity Factor With All Losses (%),0.38840283659595326
+LCOE ($/MWh),76.04758802280458
+IRR (%),0.006465854778118452
+NPV ($),-1673215527.8771274

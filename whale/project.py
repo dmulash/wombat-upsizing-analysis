@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 from copy import deepcopy
+from typing import TYPE_CHECKING
 from pathlib import Path
 from functools import reduce, partial
 from itertools import product
@@ -191,6 +192,9 @@ class Project(FromDictMixin):
             and added into the primary layout file.
         offtake_price : float, optional
             The price paid per MWh of energy produced. Defaults to None.
+        fixed_charge_rate : float, optional
+            Revenue per amount of investment required to cover the investment cost, with the default
+            provided through the NREL 2021 Cost of Energy report [1]_. Defaults to 0.0582.
         discount_rate : float, optional
             The minimum acceptable rate of return, or the assumed return on an alternative
             investment of comparable risk. Defaults to None.
@@ -198,6 +202,9 @@ class Project(FromDictMixin):
             Interest rate paid on the cash flows. Defaults to None.
         reinvestment_rate : float, optional
             Interest rate paid on the cash flows upon reinvestment. Defaults to None.
+        loss_ratio : float, optional
+            Additional non-wake losses to deduct from the total energy production. Should be
+            represented as a decimal in the range of [0, 1]. Defaults to None.
         orbit_start_date : str | None
             The date to use for installation phase start timings that are set to "0" in the
             ``install_phases`` configuration. If None the raw configuration data will be used.
@@ -230,18 +237,21 @@ class Project(FromDictMixin):
             month combinations, for instance, a semi-annual 2 year cost starting in 2020 would look
             like: ``[(2020, 1), (2020, 7), (2021, 1), (2021, 7)]``. If None is provided, then the
             CapEx date will be the same as the start of the installation. Defaults to None.
+
+    .. [1] Stehly, Tyler, and Duffy, Patrick. 2021 Cost of Wind Energy Review. United States: N. p.,
+        2022. Web. doi:10.2172/1907623.
     """
 
     library_path: Path = field(converter=resolve_path)
     weather_profile: str = field(converter=str)
     orbit_config: str | Path | dict | None = field(
-        default=None, validator=attrs.validators.instance_of((str, Path, dict, None))
+        default=None, validator=attrs.validators.instance_of((str, Path, dict, type(None)))
     )
     wombat_config: str | Path | dict | None = field(
-        default=None, validator=attrs.validators.instance_of((str, Path, dict, None))
+        default=None, validator=attrs.validators.instance_of((str, Path, dict, type(None)))
     )
     floris_config: str | Path | dict | None = field(
-        default=None, validator=attrs.validators.instance_of((str, Path, dict, None))
+        default=None, validator=attrs.validators.instance_of((str, Path, dict, type(None)))
     )
     orbit_start_date: str | None = field(default=None)
     orbit_weather_cols: list[str] = field(
@@ -264,6 +274,9 @@ class Project(FromDictMixin):
     offtake_price: float | int = field(
         default=None, validator=attrs.validators.instance_of((float, int, type(None)))
     )
+    fixed_charge_rate: float = field(
+        default=0.0582, validator=attrs.validators.instance_of((float, type(None)))
+    )
     discount_rate: float = field(
         default=None, validator=attrs.validators.instance_of((float, type(None)))
     )
@@ -271,6 +284,9 @@ class Project(FromDictMixin):
         default=None, validator=attrs.validators.instance_of((float, type(None)))
     )
     reinvestment_rate: float = field(
+        default=None, validator=attrs.validators.instance_of((float, type(None)))
+    )
+    loss_ratio: float = field(
         default=None, validator=attrs.validators.instance_of((float, type(None)))
     )
     soft_capex_date: tuple[int, int] | list[tuple[int, int]] | None = field(
@@ -298,7 +314,9 @@ class Project(FromDictMixin):
     monthly_wind_rose: WindRose = field(init=False)
     floris_turbine_order: list[str] = field(init=False, factory=list)
     turbine_potential_energy: pd.DataFrame = field(init=False)
+    turbine_production_energy: pd.DataFrame = field(init=False)
     project_potential_energy: pd.DataFrame = field(init=False)
+    project_production_energy: pd.DataFrame = field(init=False)
     _fi_dict: dict[tuple[int, int], FlorisInterface] = field(init=False, factory=dict)
     floris_results_type: str = field(init=False)
     operations_start: pd.Timestamp = field(init=False)
@@ -437,7 +455,8 @@ class Project(FromDictMixin):
                 if start == 0:
                     self.orbit_config_dict["install_phases"][phase] = self.orbit_start_date
 
-        assert isinstance(self.weather, pd.DataFrame)  # mypy helper
+        if TYPE_CHECKING:
+            assert isinstance(self.weather, pd.DataFrame)  # mypy helper
         self.orbit = ProjectManager(
             self.orbit_config_dict,
             library_path=str(self.library_path),
@@ -460,7 +479,11 @@ class Project(FromDictMixin):
         self.wombat_config_dict = attrs.asdict(self.wombat.config)
         self.operations_start = self.wombat.env.weather.index.min()
         self.operations_end = self.wombat.env.weather.index.max()
-        self.operations_years = self.operations_end.year - self.operations_start.year
+
+        start = self.wombat.env.weather.index.min()
+        end = self.wombat.env.weather.index.max()
+        diff = end - start
+        self.operations_years = round((diff.days + (diff.seconds / 60 / 60) / 24) / 365.25, 1)
 
     def setup_floris(self) -> None:
         """Creates the FLORIS FlorisInterface object and readies it for running an
@@ -543,7 +566,8 @@ class Project(FromDictMixin):
         if save_results:
             layout_file_name = self.wombat_config_dict["layout"]
             self.wombat.windfarm.layout_df.to_csv(
-                self.library_path / "project/plant" / layout_file_name
+                self.library_path / "project/plant" / layout_file_name,
+                index=False,
             )
 
     def generate_floris_positions_from_layout(
@@ -578,7 +602,8 @@ class Project(FromDictMixin):
         x, y = layout.values.T
         self.floris.reinitialize(layout_x=x, layout_y=y)
         if update_config:
-            assert isinstance(self.floris_config_dict, dict)  # mypy helper
+            if TYPE_CHECKING:
+                assert isinstance(self.floris_config_dict, dict)  # mypy helper
             self.floris_config_dict["farm"]["layout_x"] = x.tolist()
             self.floris_config_dict["farm"]["layout_y"] = y.tolist()
             if config_fname is not None:
@@ -637,7 +662,8 @@ class Project(FromDictMixin):
         month_list = range(1, 13)
         year_list = range(self.operations_start.year, self.operations_end.year + 1)
 
-        assert isinstance(self.weather, pd.DataFrame)  # mypy helper
+        if TYPE_CHECKING:
+            assert isinstance(self.weather, pd.DataFrame)  # mypy helper
         weather = self.weather.loc[
             self.operations_start : self.operations_end,
             [self.floris_windspeed, self.floris_wind_direction],
@@ -714,13 +740,15 @@ class Project(FromDictMixin):
                     in AEP due to wakes. Defaults to *False*.
         """
         if full_wind_rose:
-            assert isinstance(self.weather, pd.DataFrame)  # mypy helper
+            if TYPE_CHECKING:
+                assert isinstance(self.weather, pd.DataFrame)  # mypy helper
             weather = self.weather.loc[:, [self.floris_wind_direction, self.floris_windspeed]]
         else:
             start = self.wombat.env.weather.index.min()
             stop = self.wombat.env.weather.index.max()
 
-            assert isinstance(self.weather, pd.DataFrame)  # mypy helper
+            if TYPE_CHECKING:
+                assert isinstance(self.weather, pd.DataFrame)  # mypy helper
             weather = self.weather.loc[
                 start:stop, [self.floris_wind_direction, self.floris_windspeed]
             ]
@@ -754,8 +782,10 @@ class Project(FromDictMixin):
         if run_kwargs["cut_out_wind_speed"] is not None:
             ix_evaluate &= ws < run_kwargs["cut_out_wind_speed"]
 
-        farm_power = np.zeros((n_wd, n_ws))
-        turbine_power = np.zeros((n_wd, n_ws, self.floris.floris.farm.n_turbines))
+        farm_potential_power = np.zeros((n_wd, n_ws))
+        farm_production_power = np.zeros((n_wd, n_ws))
+        turbine_potential_power = np.zeros((n_wd, n_ws, self.floris.floris.farm.n_turbines))
+        turbine_production_power = np.zeros((n_wd, n_ws, self.floris.floris.farm.n_turbines))
         if np.any(ix_evaluate):
             ws_subset = ws[ix_evaluate]
             yaw_angles = run_kwargs.get("yaw_angles", None)
@@ -763,25 +793,40 @@ class Project(FromDictMixin):
                 yaw_angles = yaw_angles[:, ix_evaluate]
 
             self.floris.reinitialize(wind_speeds=ws_subset, wind_directions=wd)
-            if run_kwargs["no_wake"]:
-                self.floris.calculate_no_wake(yaw_angles=yaw_angles)
-            else:
-                self.floris.calculate_wake(yaw_angles=yaw_angles)
 
-            farm_power[:, ix_evaluate] = self.floris.get_farm_power(
+            # Calculate the potential energy
+            self.floris.calculate_no_wake(yaw_angles=yaw_angles)
+            farm_potential_power[:, ix_evaluate] = self.floris.get_farm_power(
                 turbine_weights=run_kwargs["turbine_weights"]
             )
-            turbine_power[:, ix_evaluate, :] = self.floris.get_turbine_powers()
+            turbine_potential_power[:, ix_evaluate, :] = self.floris.get_turbine_powers()
             if (weights := run_kwargs["turbine_weights"]) is not None:
-                turbine_power *= weights
+                turbine_potential_power *= weights
+
+            # Calculate the produced power
+            self.floris.calculate_wake(yaw_angles=yaw_angles)
+
+            farm_production_power[:, ix_evaluate] = self.floris.get_farm_power(
+                turbine_weights=run_kwargs["turbine_weights"]
+            )
+            turbine_production_power[:, ix_evaluate, :] = self.floris.get_turbine_powers()
+            if (weights := run_kwargs["turbine_weights"]) is not None:
+                turbine_production_power *= weights
         else:
             self.floris.reinitialize(wind_speeds=ws, wind_directions=wd)
 
         # Calculate the monthly contribution to AEP from the wind rose
-        self.turbine_potential_energy = calculate_monthly_wind_rose_results(
-            turbine_power, freq_monthly
+        self.turbine_production_energy = calculate_monthly_wind_rose_results(
+            turbine_production_power, freq_monthly
         )
-        self.turbine_potential_energy.columns = self.floris_turbine_order
+        self.turbine_production_energy.columns = self.floris_turbine_order  # Mwh
+        self.project_production_energy = self.turbine_production_energy.values.sum()
+
+        # Calculate the monthly potential contribution to AEP from the wind rose
+        self.turbine_potential_energy = calculate_monthly_wind_rose_results(
+            turbine_potential_power, freq_monthly
+        )
+        self.turbine_potential_energy.columns = self.floris_turbine_order  # Mwh
         self.project_potential_energy = self.turbine_potential_energy.values.sum()
 
     def run_floris(
@@ -872,7 +917,7 @@ class Project(FromDictMixin):
 
     def run(
         self,
-        which_floris: str,
+        which_floris: str | None = None,
         floris_reinitialize_kwargs: dict = {},
         floris_run_kwargs: dict = {},
         full_wind_rose: bool = False,
@@ -884,10 +929,10 @@ class Project(FromDictMixin):
         """Run all three models in serial, or a subset if ``skip`` is used.
 
         Args:
-            which_floris : str
+            which_floris : str | None, optional
                 One of "wind_rose" or "time_series" if computing the farm's AEP based on
                 a wind rose, or based on time series corresponding to the WOMBAT
-                simulation period, respectively.
+                simulation period, respectively. Defaults to None.
             floris_reinitialize_kwargs : dict
                 Any additional ``FlorisInterface.reinitialize`` keyword arguments.
             floris_run_kwargs : dict
@@ -920,10 +965,12 @@ class Project(FromDictMixin):
             ValueError
                 Raised if ``which_floris`` is not one of "wind_rose" or "time_series".
         """
-        if which_floris not in ("wind_rose", "time_series"):
-            raise ValueError(
-                f"`which_floris` must be one of: 'wind_rose' or 'time_series', not: {which_floris}"
-            )
+        if "floris" not in skip:
+            if which_floris not in ("wind_rose", "time_series"):
+                raise ValueError(
+                    "`which_floris` must be one of: 'wind_rose' or 'time_series' when running"
+                    f" FLORIS, not: {which_floris}"
+                )
 
         if which_floris == "wind_rose":
             floris_reinitialize_kwargs.update(
@@ -935,6 +982,8 @@ class Project(FromDictMixin):
         if "wombat" not in skip:
             self.wombat.run()
         if "floris" not in skip:
+            if TYPE_CHECKING:
+                assert isinstance(which_floris, str)
             self.run_floris(
                 which=which_floris,
                 reinitialize_kwargs=floris_reinitialize_kwargs,
@@ -1078,7 +1127,7 @@ class Project(FromDictMixin):
             The number of substations in the project.
         """
         if self.orbit_config is not None or "OffshoreSubstationDesign" not in self.orbit._phases:
-            return self.orbit._phases["OffshoreSubstationDesign"].num_substations
+            return self.orbit_config_dict["oss_design"]["num_substations"]
         if self.wombat_config is not None:
             return len(self.wombat.windfarm.substation_id)
         raise RuntimeError("No models wer provided, cannot calculate value.")
@@ -1119,7 +1168,9 @@ class Project(FromDictMixin):
             return capacity / 1000
         raise ValueError("`units` must be one of: 'kw', 'mw', or 'gw'.")
 
-    def capex(self, breakdown: bool = False, per_capacity: str | None = None) -> pd.DataFrame:
+    def capex(
+        self, breakdown: bool = False, per_capacity: str | None = None
+    ) -> pd.DataFrame | float:
         """Provides a thin wrapper to ORBIT's ``ProjectManager`` CapEx calculations that
         can provide a breakdown of total or normalize it by the project's capacity, in MW.
 
@@ -1200,22 +1251,29 @@ class Project(FromDictMixin):
         ValueError
             Raised if ``ExportSystemDesign`` was not created in ORBIT.
         """
-        if "ExportSystemDesign" not in self.orbit._phases:
-            raise ValueError("No export system design was included in the ORBIT configuration.")
-        return self.orbit._phases["ExportSystemDesign"].total_length
+        try:
+            return self.orbit._phases["ExportSystemDesign"].total_length
+        except KeyError:
+            return self.orbit._phases["ElectricalDesign"].total_length
+        except KeyError:
+            raise ValueError(
+                "Neither an `ElectricalDesign` nor an `ExportSystemDesign` phase were defined to be"
+                " able to calculate this metric."
+            )
 
     # Operational metrics
 
-    def energy_production(
-        self, frequency: str = "project", by: str = "windfarm", per_capacity: str | None = None
-    ) -> pd.DataFrame:
-        """Computes the energy production, in GWh, for the simulation by extrapolating the monthly
-        contributions to AEP if FLORIS results were computed by a wind rose, or using the time
-        series results, and multiplying it by the WOMBAT monthly availability
-        (``Metrics.production_based_availability``).
-
-        .. warning:: This assumes that the simulation period is January - December for every year
-            of the simulation.
+    def energy_potential(
+        self,
+        frequency: str = "project",
+        by: str = "windfarm",
+        units: str = "gw",
+        per_capacity: str | None = None,
+        aep: bool = False,
+    ) -> pd.DataFrame | float:
+        """Computes the potential energy production, or annual potential energy production, in GWh,
+        for the simulation by extrapolating the monthly contributions to AEP if FLORIS results were
+        computed by a wind rose, or using the time series results.
 
         Parameters
         ----------
@@ -1224,11 +1282,14 @@ class Project(FromDictMixin):
             (monthly totals for each year).
         by : str, optional
             One of "windfarm" (project level) or "turbine" (turbine level) to
-            indicate what level to calculate the
+            indicate what level to calculate the energy production.
         per_capacity : str, optional
             Provide the energy production normalized by the project's capacity, in the desired
             units. If None, then the unnormalized energy production is returned, otherwise it must
             be one of "kw", "mw", or "gw". Defaults to None.
+        aep : bool, optional
+            Flag to return the energy production normalized by the number of years the plan is in
+            operation. Note that :py:attr:`frequency` must be "project" for this to be computed.
 
         Raises
         ------
@@ -1237,7 +1298,113 @@ class Project(FromDictMixin):
 
         Returns
         -------
-        pd.DataFrame
+        pd.DataFrame | float
+            The wind farm-level energy prodcution, in GWh, for the desired ``frequency``.
+        """
+        availability = self.wombat.metrics.production_based_availability(
+            frequency="month-year", by="turbine"
+        ).loc[:, self.floris_turbine_order]
+        if self.floris_results_type == "wind_rose":
+            power = pd.DataFrame(0.0, dtype=float, index=availability.index, columns=["drop"])
+            power = power.merge(
+                self.turbine_production_energy,
+                how="left",
+                left_on="month",
+                right_index=True,
+            ).drop(labels=["drop"], axis=1)
+            energy_gwh = power / 1000
+
+        if self.floris_results_type == "time_series":
+            energy_gwh = self.turbine_aep_mwh / 1000
+            energy_gwh *= (
+                self.turbine_potential_energy.assign(
+                    year=energy_gwh.index.year, month=energy_gwh.index.month
+                )
+                .groupby(["year", "month"])
+                .sum()
+                .loc[energy_gwh.index]
+            )
+
+        unit_map = {"kw": "kWh", "mw": "MWh", "gw": "GWh"}
+        if by == "windfarm":
+            energy_gwh = energy_gwh.sum(axis=1).to_frame(f"Energy Losses ({unit_map[units]})")
+
+        # Aggregate to the desired frequency level (nothing required for month-year)
+        if frequency == "annual":
+            energy_gwh = (
+                energy_gwh.reset_index(drop=False).groupby("year").sum().drop(columns=["month"])
+            )
+        elif frequency == "project":
+            if by == "turbine":
+                energy_gwh = (
+                    energy_gwh.sum(axis=0).to_frame(name=f"Energy Losses ({unit_map[units]})").T
+                )
+            else:
+                energy_gwh = energy_gwh.values.sum()
+
+        if aep:
+            if frequency != "project":
+                raise ValueError("`aep` can only be set to True, if `frequency`='project'.")
+            energy_gwh /= self.operations_years
+
+        if units == "kw":
+            energy = energy_gwh * 1e6
+        if units == "mw":
+            energy = energy_gwh * 1e3
+        if units == "gw":
+            energy = energy_gwh
+
+        if per_capacity is None:
+            return energy
+        return energy / self.capacity(per_capacity)
+
+    def energy_production(
+        self,
+        frequency: str = "project",
+        by: str = "windfarm",
+        units: str = "gw",
+        per_capacity: str | None = None,
+        with_losses: bool = False,
+        loss_ratio: float | None = None,
+        aep: bool = False,
+    ) -> pd.DataFrame | float:
+        """Computes the energy production, or annual energy production, in GWh, for the simulation
+        by extrapolating the monthly contributions to AEP if FLORIS results were computed by a wind
+        rose, or using the time series results, and multiplying it by the WOMBAT monthly
+        availability (``Metrics.production_based_availability``).
+
+        Parameters
+        ----------
+        frequency : str, optional
+            One of "project" (project total), "annual" (annual total), or "month-year"
+            (monthly totals for each year).
+        by : str, optional
+            One of "windfarm" (project level) or "turbine" (turbine level) to
+            indicate what level to calculate the energy production.
+        per_capacity : str, optional
+            Provide the energy production normalized by the project's capacity, in the desired
+            units. If None, then the unnormalized energy production is returned, otherwise it must
+            be one of "kw", "mw", or "gw". Defaults to None.
+        with_losses : bool, optional
+            Use the :py:attr:`loss_ratio` or :py:attr:`Project.loss_ratio` to post-hoc
+            consider non-wake and non-availability losses in the energy production aggregation.
+            Defaults to False.
+        loss_ratio : float, optional
+            The decimal non-wake and non-availability losses ratio to apply to the energy
+            production. If None, then it will attempt to use the :py:attr:`loss_ratio` provided
+            in the Project configuration. Defaults to None.
+        aep : bool, optional
+            Flag to return the energy production normalized by the number of years the plan is in
+            operation. Note that :py:attr:`frequency` must be "project" for this to be computed.
+
+        Raises
+        ------
+        ValueError
+            Raised if ``frequency`` is not one of: "project", "annual", "month-year".
+
+        Returns
+        -------
+        pd.DataFrame | float
             The wind farm-level energy prodcution, in GWh, for the desired ``frequency``.
         """
         # Check the frequency input
@@ -1247,56 +1414,323 @@ class Project(FromDictMixin):
 
         # For the wind rose outputs, only consider project-level availability because
         # wind rose AEP is a long-term estimation of energy production
-        power_gwh = self.wombat.metrics.production_based_availability(
+        availability = self.wombat.metrics.production_based_availability(
             frequency="month-year", by="turbine"
         ).loc[:, self.floris_turbine_order]
         if self.floris_results_type == "wind_rose":
-            power_gwh *= (
-                np.repeat(
-                    self.turbine_potential_energy.values,
-                    power_gwh.shape[0] / self.turbine_potential_energy.shape[0],
-                    axis=0,
-                )
-                / 1000
-            )
+            power = pd.DataFrame(0.0, dtype=float, index=availability.index, columns=["drop"])
+            power = power.merge(
+                self.turbine_production_energy,
+                how="left",
+                left_on="month",
+                right_index=True,
+            ).drop(labels=["drop"], axis=1)
+            energy_gwh = availability * power / 1000
 
         if self.floris_results_type == "time_series":
-            power_gwh = self.turbine_aep_mwh / 1000
-            power_gwh *= (
+            energy_gwh = self.turbine_aep_mwh / 1000
+            energy_gwh *= (
                 self.turbine_potential_energy.assign(
-                    year=power_gwh.index.year, month=power_gwh.index.month
+                    year=energy_gwh.index.year, month=energy_gwh.index.month
                 )
                 .groupby(["year", "month"])
                 .sum()
-                .loc[power_gwh.index]
+                .loc[energy_gwh.index]
             )
 
         if by == "windfarm":
-            power_gwh = power_gwh.sum(axis=1).to_frame("Energy Production (GWh)")
+            energy_gwh = energy_gwh.sum(axis=1).to_frame("Energy Production (GWh)")
 
         # Aggregate to the desired frequency level (nothing required for month-year)
         if frequency == "annual":
-            power_gwh = (
-                power_gwh.reset_index(drop=False).groupby("year").sum().drop(columns=["month"])
+            energy_gwh = (
+                energy_gwh.reset_index(drop=False).groupby("year").sum().drop(columns=["month"])
             )
         elif frequency == "project":
             if by == "turbine":
-                power_gwh = pd.DataFrame(
-                    [power_gwh.reset_index(drop=False).values.sum()],
-                    columns=["Energy Production (GWh)"],
-                )
+                energy_gwh = energy_gwh.sum(axis=0).to_frame(name="Energy Production (GWh)").T
             else:
-                power_gwh = power_gwh.reset_index(drop=False).values.sum()
+                energy_gwh = energy_gwh.values.sum()
+
+        if with_losses:
+            # Check that a loss_ratio exists
+            if loss_ratio is None:
+                if (loss_ratio := self.loss_ratio) is None:
+                    raise ValueError(
+                        "`loss_ratio` wasn't defined in the Project settings or in the method"
+                        " keyword arguments."
+                    )
+            # Get the base production numbers from WOMBAT
+            base_production = self.energy_potential(frequency=frequency, by=by, units="gw")
+            energy_gwh -= base_production * loss_ratio
+
+        if aep:
+            if frequency != "project":
+                raise ValueError("`aep` can only be set to True, if `frequency`='project'.")
+            energy_gwh /= self.operations_years
+
+        if units == "kw":
+            energy = energy_gwh * 1e6
+        if units == "mw":
+            energy = energy_gwh * 1e3
+        if units == "gw":
+            energy = energy_gwh
 
         if per_capacity is None:
-            return power_gwh
+            return energy
 
-        per_capacity = per_capacity.lower()
-        return power_gwh / self.capacity(per_capacity)
+        return energy / self.capacity(per_capacity)
+
+    def energy_losses(
+        self,
+        frequency: str = "project",
+        by: str = "windfarm",
+        units: str = "gw",
+        per_capacity: str | None = None,
+        with_losses: bool = False,
+        loss_ratio: float | None = None,
+        aep: bool = False,
+    ) -> pd.DataFrame:
+        """Computes the energy losses for the simulation by subtracting the energy production from
+        the potential energy production.
+
+        Parameters
+        ----------
+        frequency : str, optional
+            One of "project" (project total), "annual" (annual total), or "month-year"
+            (monthly totals for each year).
+        by : str, optional
+            One of "windfarm" (project level) or "turbine" (turbine level) to
+            indicate what level to calculate the energy production.
+        per_capacity : str, optional
+            Provide the energy production normalized by the project's capacity, in the desired
+            units. If None, then the unnormalized energy production is returned, otherwise it must
+            be one of "kw", "mw", or "gw". Defaults to None.
+        with_losses : bool, optional
+            Use the :py:attr:`loss_ratio` or :py:attr:`Project.loss_ratio` to post-hoc
+            consider non-wake and non-availability losses in the energy production aggregation.
+            Defaults to False.
+        loss_ratio : float, optional
+            The decimal non-wake and non-availability losses ratio to apply to the energy
+            production. If None, then it will attempt to use the :py:attr:`loss_ratio` provided
+            in the Project configuration. Defaults to None.
+        aep : bool, optional
+            AEP for the annualized losses. Only used for :py:attr:`frequency` = "project".
+
+        Raises
+        ------
+        ValueError
+            Raised if ``frequency`` is not one of: "project", "annual", "month-year".
+
+        Returns
+        -------
+        pd.DataFrame | float
+            The wind farm-level energy prodcution, in GWh, for the desired ``frequency``.
+        """
+        potential = self.energy_potential(
+            "month-year",
+            by="turbine",
+            units="kw",
+        )
+        production = self.energy_production(  # type: ignore
+            "month-year",
+            by="turbine",
+            units="kw",
+            with_losses=with_losses,
+            loss_ratio=loss_ratio,
+        )[self.wombat.metrics.turbine_id]
+        losses = potential - production
+
+        unit_map = {"kw": "kWh", "mw": "MWh", "gw": "GWh"}
+        if by == "windfarm":
+            losses = losses.sum(axis=1).to_frame(f"Energy Losses ({unit_map[units]})")
+
+        if frequency == "project":
+            losses = losses.sum(axis=0)
+            if by == "windfarm":
+                losses = losses.values[0]
+            if aep:
+                losses /= self.operations_years
+        elif frequency == "annual":
+            losses = losses.groupby("year").sum()
+
+        if units == "mw":
+            losses /= 1e3
+        elif units == "gw":
+            losses /= 1e6
+
+        if per_capacity is None:
+            return losses
+
+        return losses / self.capacity(per_capacity)
+
+    def availability(
+        self, which: str, frequency: str = "project", by: str = "windfarm"
+    ) -> pd.DataFrame | float:
+        """Calculates the availability based on either a time or energy basis.
+
+        Parameters
+        ----------
+        which : str
+            One of "energy" or "time" to indicate which basis to use for the availability
+            calculation. For "energy", this indicates the operating capacity of the project, and
+            for "time", this is the ratio of any level operational to all time.
+        frequency : str, optional
+            One of "project" (project total), "annual" (annual total), or "month-year"
+            (monthly totals for each year).
+        by : str, optional
+            One of "windfarm" (project level) or "turbine" (turbine level) to
+            indicate what level to calculate the availability.
+
+        Returns
+        -------
+        pd.DataFrame | float
+            The appropriate availability metric, as a DataFrame unless it's calculated at the
+            project/windfarm level.
+
+        Raises
+        ------
+        ValueError
+            Raised if :py:attr:`which` is not one of "energy" or "time".
+        """
+        which = which.lower()
+        if which == "energy":
+            availability = self.wombat.metrics.production_based_availability(
+                frequency=frequency, by=by
+            )
+        elif which == "time":
+            availability = self.wombat.metrics.time_based_availability(frequency=frequency, by=by)
+        else:
+            raise ValueError("`which` must be one of 'energy' or 'time'.")
+
+        if frequency == "project" and by == "windfarm":
+            return availability.values[0, 0]
+        return availability
+
+    def capacity_factor(
+        self,
+        which: str,
+        frequency: str = "project",
+        by: str = "windfarm",
+        with_losses: bool = False,
+        loss_ratio: float | None = None,
+    ) -> pd.DataFrame | float:
+        """Calculates the capacity factor over a project's lifetime as a single value, annual
+        average, or monthly average for the whole windfarm or by turbine.
+
+        Parameters
+        ----------
+        which : str
+            One of "net" (realized energy / capacity) or "gross" (potential energy production /
+            capacity).
+        frequency : str
+            One of "project", "annual", "monthly", or "month-year". Defaults to "project".
+        by : str
+            One of "windfarm" or "turbine". Defaults to "windfarm".
+        with_losses : bool, optional
+            Use the :py:attr:`loss_ratio` or :py:attr:`Project.loss_ratio` to post-hoc
+            consider non-wake and non-availability losses in the energy production aggregation.
+            Defaults to False.
+
+            .. note:: This will only be checked for :py:attr:`which` = "net".
+
+        loss_ratio : float, optional
+            The decimal non-wake and non-availability losses ratio to apply to the energy
+            production. If None, then it will attempt to use the :py:attr:`loss_ratio` provided
+            in the Project configuration. Defaults to None.
+
+            .. note:: This will only be used when for :py:attr:`which` = "net".
+
+        Returns
+        -------
+        pd.DataFrame | float
+            The capacity factor at the desired aggregation level.
+        """
+        which = which.lower().strip()
+        if which not in ("net", "gross"):
+            raise ValueError('``which`` must be one of "net" or "gross".')
+
+        opts = ("project", "annual", "month-year")
+        if frequency not in opts:
+            raise ValueError(f"`frequency` must be one of {opts}.")  # type: ignore
+
+        by = by.lower().strip()
+        if by not in ("windfarm", "turbine"):
+            raise ValueError('``by`` must be one of "windfarm" or "turbine".')
+        by_turbine = by == "turbine"
+
+        if which == "net":
+            numerator = self.energy_production(
+                frequency="month-year",
+                by="turbine",
+                units="kw",
+                with_losses=with_losses,
+                loss_ratio=loss_ratio,
+            )
+        else:
+            numerator = self.energy_potential(
+                frequency="month-year",
+                by="turbine",
+                units="kw",
+            )
+        _potential = self.wombat.metrics.potential.loc[
+            :, ["year", "month"] + self.wombat.metrics.turbine_id
+        ]
+        _capacity = np.ones((_potential.shape[0], self.n_turbines())) * np.array(
+            self.wombat.metrics.turbine_capacities
+        )
+        capacity = (
+            pd.DataFrame(
+                np.hstack(
+                    (
+                        _potential.year.values.reshape(-1, 1),
+                        _potential.month.values.reshape(-1, 1),
+                        _capacity,
+                    )
+                ),
+                columns=_potential.columns,
+            )
+            .groupby(["year", "month"])
+            .sum()
+        )
+
+        if TYPE_CHECKING:
+            assert isinstance(numerator, pd.DataFrame)
+
+        if frequency == "project":
+            if not by_turbine:
+                return numerator.values.sum() / capacity.values.sum()
+            return (
+                (numerator.sum(axis=0) / capacity.sum(axis=0))
+                .to_frame(f"{which.title()} Capacity Factor")
+                .T
+            )
+
+        if frequency == "annual":
+            group_cols = ["year"]
+        elif frequency == "monthly":
+            group_cols = ["month"]
+        elif frequency == "month-year":
+            group_cols = ["year", "month"]
+        capacity = (
+            capacity.reset_index(drop=False)[group_cols + self.wombat.metrics.turbine_id]
+            .groupby(group_cols)
+            .sum()
+        )
+        numerator = (
+            numerator.reset_index(drop=False)[group_cols + self.wombat.metrics.turbine_id]
+            .groupby(group_cols)
+            .sum()
+        )
+
+        if not by_turbine:
+            numerator = numerator.sum(axis=1).to_frame(name=f"{which.title()} Capacity Factor")
+            capacity = capacity.sum(axis=1).to_frame(name=f"{which.title()} Capacity Factor")
+        return numerator / capacity
 
     def opex(
         self, frequency: str = "project", per_capacity: str | None = None
-    ) -> pd.DataFrame | None:
+    ) -> pd.DataFrame | float:
         """Calculates the operational expenditures of the project.
 
         Parameters
@@ -1329,7 +1763,7 @@ class Project(FromDictMixin):
         frequency: str = "project",
         offtake_price: float | None = None,
         per_capacity: str | None = None,
-    ) -> pd.DataFrame:
+    ) -> pd.DataFrame | float:
         """Calculates the revenue stream using the WOMBAT availabibility, FLORIS energy
         production, and WHaLE energy pricing.
 
@@ -1368,6 +1802,8 @@ class Project(FromDictMixin):
             revenue = self.energy_production(frequency=frequency) * 1000 * offtake_price  # MWh
 
         if frequency != "project":
+            if TYPE_CHECKING:
+                assert isinstance(revenue, pd.DataFrame)
             revenue.columns = ["Revenue"]
 
         if per_capacity is None:
@@ -1375,6 +1811,222 @@ class Project(FromDictMixin):
 
         per_capacity = per_capacity.lower()
         return revenue / self.capacity(per_capacity)
+
+    def capex_breakdown(
+        self,
+        frequency: str = "month-year",
+        installation_start_date: str | None = None,
+        soft_capex_date: tuple[int, int] | list[tuple[int, int]] | None = None,
+        project_capex_date: tuple[int, int] | list[tuple[int, int]] | None = None,
+        system_capex_date: tuple[int, int] | list[tuple[int, int]] | None = None,
+        turbine_capex_date: tuple[int, int] | list[tuple[int, int]] | None = None,
+        breakdown: bool = False,
+    ) -> pd.DataFrame:
+        """Calculates the monthly CapEx breakdwon into a DataFrame, that is returned at the desired
+        frequency, allowing for custom starting dates for the varying CapEx costs.
+
+        Parameters
+        ----------
+        frequency : str, optional
+            The desired frequency of the outputs, where "month-year" is the monthly total over the
+            course of a project's life. Must be one of: "project", "annual", "month-year". Defaults
+            to "month-year"
+        installation_start_date : str | None, optional
+            If not provided in the ``Project`` configuration as ``orbit_start_date``, an
+            installation starting date that is parseable from a string by Pandas may be provided
+            here. Defaults to None
+        soft_capex_date : tuple[int, int] | list[tuple[int, int]] | None, optional
+            The date(s) where the ORBIT soft CapEx costs should be applied as a tuple of year and
+            month, for instance: ``(2020, 1)`` for January 2020. Alternatively multiple dates can be
+            set, which evenly divides the cost over all the dates, by providing a list of year and
+            month combinations, for instance, a semi-annual 2 year cost starting in 2020 would look
+            like: ``[(2020, 1), (2020, 7), (2021, 1), (2021, 7)]``. If None is provided, then the
+            CapEx date will be the same as the start of the installation. Defaults to None
+        project_capex_date : tuple[int, int] | list[tuple[int, int]] | None, optional
+            The date(s) where the ORBIT project CapEx costs should be applied as a tuple of year and
+            month, for instance: ``(2020, 1)`` for January 2020. Alternatively multiple dates can be
+            set, which evenly divides the cost over all the dates, by providing a list of year and
+            month combinations, for instance, a semi-annual 2 year cost starting in 2020 would look
+            like: ``[(2020, 1), (2020, 7), (2021, 1), (2021, 7)]``. If None is provided, then the
+            CapEx date will be the same as the start of the installation. Defaults to None
+        system_capex_date : tuple[int, int] | list[tuple[int, int]] | None, optional
+            The date(s) where the ORBIT system CapEx costs should be applied as a tuple of year and
+            month, for instance: ``(2020, 1)`` for January 2020. Alternatively multiple dates can be
+            set, which evenly divides the cost over all the dates, by providing a list of year and
+            month combinations, for instance, a semi-annual 2 year cost starting in 2020 would look
+            like: ``[(2020, 1), (2020, 7), (2021, 1), (2021, 7)]``. If None is provided, then the
+            CapEx date will be the same as the start of the installation. Defaults to None.
+        turbine_capex_date : tuple[int, int] | list[tuple[int, int]] | None, optional
+            The date(s) where the ORBIT turbine CapEx costs should be applied as a tuple of year and
+            month, for instance: ``(2020, 1)`` for January 2020. Alternatively multiple dates can be
+            set, which evenly divides the cost over all the dates, by providing a list of year and
+            month combinations, for instance, a semi-annual 2 year cost starting in 2020 would look
+            like: ``[(2020, 1), (2020, 7), (2021, 1), (2021, 7)]``. If None is provided, then the
+            CapEx date will be the same as the start of the installation. Defaults to None.
+        offtake_price : int | float | None, optional
+            The price paid for the energy produced, by default None.
+        breakdown : bool, optional
+            If True, all the CapEx categories will be provided as a column, in addition to the OpEx
+            and Revenue columns, and the total cost in "cash_flow", othwerwise, only the "cash_flow"
+            column will be provided. Defaults to False.
+
+        Returns
+        -------
+        pd.DataFrame
+            Returns the pandas DataFrame of the cashflow with a fixed monthly or annual interval,
+            or a project total for the desired categories.
+
+        Raises
+        ------
+        ValueError
+            Raised if ``frequency`` is not one of: "project", "annual", "month-year".
+        TypeError
+            Raised if a valid starting date can't be found for the installation.
+        """
+        # Check the frequency input
+        opts = ("project", "annual", "month-year")
+        if frequency not in opts:
+            raise ValueError(f"`frequency` must be one of {opts}.")  # type: ignore
+
+        # Find a valid starting date for the installation processes
+        if (start_date := installation_start_date) is None:
+            if (start_date := self.orbit_start_date) is None:
+                start_date = min(el for el in self.orbit_config_dict["install_phases"].values())
+        try:
+            start_date = pd.to_datetime(start_date)
+        except pd.errors.ParserError:
+            raise TypeError(
+                "Please provide a valid `instatllation_start_date` if no configuration-based"
+                " starting dates were provided."
+            )
+
+        # Create the cost dataframes that have a MultiIndex with "year" and "month" columns
+        # Get the installation costs and add in each installation phase's port costs
+        capex_installation = pd.DataFrame(self.orbit.logs)
+        starts = capex_installation.loc[
+            capex_installation.message == "SIMULATION START", ["phase", "time"]
+        ]
+        phase_df_list = []
+        for name, time in starts.values:
+            phase = self.orbit._phases[name]
+            total_days = phase.total_phase_time / 24
+            n_days, remainder = divmod(total_days, 1)
+            day_cost = phase.port_costs / total_days
+            phase_daily_port = np.repeat(day_cost, n_days).tolist() + [day_cost * remainder]
+            timing = (np.arange(n_days + 1) * 24 + time).tolist()
+            phase_df = pd.DataFrame(zip(timing, phase_daily_port), columns=["time", "cost"])
+            phase_df["phase"] = name
+            phase_df_list.append(phase_df)
+
+        capex_installation = pd.concat([capex_installation, *phase_df_list], axis=0).sort_values(
+            "time"
+        )
+
+        # Put the installation CapEx in a format that matches the OpEx output
+        capex_installation["datetime"] = start_date + pd.to_timedelta(
+            capex_installation.time, unit="hours"
+        )
+        capex_installation = (
+            capex_installation.assign(
+                year=capex_installation.datetime.dt.year,
+                month=capex_installation.datetime.dt.month,
+            )[["year", "month", "cost", "phase"]]
+            .groupby(["year", "month", "phase"])
+            .sum()
+            .unstack(level=2, fill_value=0)
+        )
+        capex_installation.columns = [f"CapEx_{c}" for c in capex_installation.columns.droplevel(0)]
+        capex_installation.columns.name = None  # type: ignore
+
+        # Check the date values, ensuring a the installation start is the default if none provided
+        default_start = [capex_installation.index[0]]
+        if soft_capex_date is None:
+            if (soft_capex_date := self.soft_capex_date) is None:
+                soft_capex_date = default_start
+
+        if project_capex_date is None:
+            if (project_capex_date := self.project_capex_date) is None:
+                project_capex_date = default_start
+
+        if system_capex_date is None:
+            if (system_capex_date := self.system_capex_date) is None:
+                system_capex_date = default_start
+
+        if turbine_capex_date is None:
+            if (turbine_capex_date := self.turbine_capex_date) is None:
+                turbine_capex_date = default_start
+
+        # Convert the dates to a pandas MultiIndex to be compatible with concatenating later
+        soft_capex_date_ix = convert_to_multi_index(soft_capex_date, "soft_capex_date")
+        project_capex_date_ix = convert_to_multi_index(project_capex_date, "project_capex_date")
+        system_capex_date_ix = convert_to_multi_index(system_capex_date, "system_capex_date")
+        turbine_capex_date_ix = convert_to_multi_index(turbine_capex_date, "turbine_capex_date")
+
+        # Create the remaining CapEx dataframes in the OpEx format
+        capex_soft = pd.DataFrame(
+            self.orbit.soft_capex / len(soft_capex_date_ix),
+            index=soft_capex_date_ix,
+            columns=["CapEx_Soft"],
+        )
+        capex_project = pd.DataFrame(
+            self.orbit.project_capex / len(project_capex_date_ix),
+            index=project_capex_date_ix,
+            columns=["CapEx_Project"],
+        )
+        capex_turbine = pd.DataFrame(
+            self.orbit.turbine_capex / len(turbine_capex_date_ix),
+            index=turbine_capex_date_ix,
+            columns=["CapEx_Turbine"],
+        )
+        if self.orbit.system_costs == {}:
+            capex_system = pd.DataFrame([0], columns=["Installation"])
+        else:
+            capex_system = pd.DataFrame.from_dict(self.orbit.system_costs, orient="index").T
+        capex_system = capex_system.loc[
+            capex_system.index.repeat(len(system_capex_date_ix))
+        ].set_index(system_capex_date_ix) / len(system_capex_date_ix)
+        capex_system.columns = [
+            f"CapEx_{col.replace('Installation', 'System')}" for col in capex_system
+        ]
+
+        # Combine the CapEx categories and sum for a total CapEx
+        capex_df = reduce(
+            lambda x, y: x.join(y, how="outer"),
+            [
+                capex_soft,
+                capex_project,
+                capex_turbine,
+                capex_system,
+                capex_installation,
+            ],
+        ).fillna(0)
+
+        # Fill in the missing time periods to ensure a fixed-interval cash flow
+        years = capex_df.index.get_level_values("year")
+        years = list(range(min(years), max(years)))
+        missing_ix = set(product(years, range(1, 13))).difference(capex_df.index.values)
+        if missing_ix:
+            capex_df = pd.concat(
+                [
+                    capex_df,
+                    pd.DataFrame(
+                        0,
+                        index=convert_to_multi_index(list(missing_ix), "missing"),
+                        columns=capex_df.columns,
+                    ),
+                ]
+            ).sort_index()
+        if frequency == "annual":
+            capex_df = (
+                capex_df.reset_index(drop=False).groupby("year").sum().drop(labels="month", axis=1)
+            )
+        elif frequency == "project":
+            capex_df = capex_df.sum(axis=0).to_frame(name="Cash Flow").T
+
+        capex_df["Capex"] = capex_df.sum(axis=1).sort_index()
+        if breakdown:
+            return capex_df
+        return capex_df.CapEx.to_frame()
 
     def cash_flow(
         self,
@@ -1497,11 +2149,13 @@ class Project(FromDictMixin):
             capex_installation.assign(
                 year=capex_installation.datetime.dt.year,
                 month=capex_installation.datetime.dt.month,
-            )[["year", "month", "cost"]]
-            .groupby(["year", "month"])
+            )[["year", "month", "cost", "phase"]]
+            .groupby(["year", "month", "phase"])
             .sum()
-            .rename(columns={"cost": "installation_capex"})
+            .unstack(level=2, fill_value=0)
         )
+        capex_installation.columns = [f"CapEx_{c}" for c in capex_installation.columns.droplevel(0)]
+        capex_installation.columns.name = None  # type: ignore
 
         # Check the date values, ensuring a the installation start is the default if none provided
         default_start = [capex_installation.index[0]]
@@ -1531,33 +2185,35 @@ class Project(FromDictMixin):
         capex_soft = pd.DataFrame(
             self.orbit.soft_capex / len(soft_capex_date_ix),
             index=soft_capex_date_ix,
-            columns=["soft_capex"],
+            columns=["CapEx_Soft"],
         )
         capex_project = pd.DataFrame(
             self.orbit.project_capex / len(project_capex_date_ix),
             index=project_capex_date_ix,
-            columns=["project_capex"],
-        )
-        capex_system = pd.DataFrame(
-            self.orbit.system_capex / len(system_capex_date_ix),
-            index=system_capex_date_ix,
-            columns=["system_capex"],
+            columns=["CapEx_Project"],
         )
         capex_turbine = pd.DataFrame(
             self.orbit.turbine_capex / len(turbine_capex_date_ix),
             index=turbine_capex_date_ix,
-            columns=["turbine_capex"],
+            columns=["CapEx_Turbine"],
         )
+        capex_system = pd.DataFrame.from_dict(self.orbit.system_costs, orient="index").T
+        capex_system = capex_system.loc[
+            capex_system.index.repeat(len(system_capex_date_ix))
+        ].set_index(system_capex_date_ix) / len(system_capex_date_ix)
+        capex_system.columns = [
+            f"CapEx_{col.replace('Installation', 'System')}" for col in capex_system
+        ]
 
         # Combine the CapEx, Opex, and Revenue times and ensure their signs are correct
         cost_df = reduce(
             lambda x, y: x.join(y, how="outer"),
             [
-                capex_installation,
                 capex_soft,
                 capex_project,
-                capex_system,
                 capex_turbine,
+                capex_system,
+                capex_installation,
                 self.opex(frequency="month-year"),
             ],
         ).fillna(0)
@@ -1581,6 +2237,13 @@ class Project(FromDictMixin):
                     ),
                 ]
             ).sort_index()
+        if frequency == "annual":
+            cost_df = (
+                cost_df.reset_index(drop=False).groupby("year").sum().drop(labels="month", axis=1)
+            )
+        elif frequency == "project":
+            cost_df = cost_df.sum(axis=0).to_frame(name="Cash Flow").T
+
         cost_df["cash_flow"] = cost_df.sum(axis=1).sort_index()
         if breakdown:
             return cost_df
@@ -1591,6 +2254,7 @@ class Project(FromDictMixin):
         frequency: str = "project",
         discount_rate: float | None = None,
         offtake_price: float | None = None,
+        cash_flow: pd.DataFrame | None = None,
         **kwargs: dict,
     ) -> pd.DataFrame:
         """Calculates the net present value of the windfarm at a project, annual, or
@@ -1607,6 +2271,9 @@ class Project(FromDictMixin):
             The rate of return that could be earned on alternative investments. Defaults to None.
         offtake_price : float, optional
             Price of energy, per MWh. Defaults to None.
+        cash_flow : pd.DataFrame, optional
+            A modified cash flow DataFrame for custom workflows. Must have the "cash_flow" column
+            with consistent time steps (monthly, annually, etc.). Defaults to None.
         kwargs : dict, optional
             See :py:meth:`cash_flow` for details on starting date options.
 
@@ -1636,21 +2303,23 @@ class Project(FromDictMixin):
                     " keyword arguments."
                 )
 
-        cashflow = self.cash_flow(
-            installation_start_date=kwargs.get("installation_start_date", None),  # type: ignore
-            project_capex_date=kwargs.get("project_capex_date", None),  # type: ignore
-            soft_capex_date=kwargs.get("soft_capex_date", None),  # type: ignore
-            system_capex_date=kwargs.get("system_capex_date", None),  # type: ignore
-            turbine_capex_date=kwargs.get("turbine_capex_date", None),  # type: ignore
-            offtake_price=offtake_price,
-        ).values.flatten()
-        return npf.npv(discount_rate, cashflow)
+        if cash_flow is None:
+            cash_flow = self.cash_flow(
+                installation_start_date=kwargs.get("installation_start_date", None),  # type: ignore
+                project_capex_date=kwargs.get("project_capex_date", None),  # type: ignore
+                soft_capex_date=kwargs.get("soft_capex_date", None),  # type: ignore
+                system_capex_date=kwargs.get("system_capex_date", None),  # type: ignore
+                turbine_capex_date=kwargs.get("turbine_capex_date", None),  # type: ignore
+                offtake_price=offtake_price,
+            )
+        return npf.npv(discount_rate, cash_flow.cash_flow.values)
 
     def irr(
         self,
         offtake_price: float | None = None,
         finance_rate: float | None = None,
         reinvestment_rate: float | None = None,
+        cash_flow: pd.DataFrame | None = None,
         **kwargs,
     ) -> float:
         """Calculates the Internal Rate of Return using the ORBIT CapEx as the initial
@@ -1670,6 +2339,9 @@ class Project(FromDictMixin):
         reinvestment_rate : float, optional
             Interest rate received on the cash flows upon reinvestment.  Only used if
             :py:attr:`finance_rate` is also provided.
+        cash_flow : pd.DataFrame, optional
+            A modified cash flow DataFrame for custom workflows. Must have the "cash_flow" column
+            with consistent time steps (monthly, annually, etc.). Defaults to None.
         kwargs : dict, optional
             See :py:meth:`cash_flow` for details on starting date options.
 
@@ -1692,27 +2364,40 @@ class Project(FromDictMixin):
         if reinvestment_rate is None:
             reinvestment_rate = self.reinvestment_rate
 
-        cashflow = self.cash_flow(
-            installation_start_date=kwargs.get("installation_start_date", None),
-            project_capex_date=kwargs.get("project_capex_date", None),
-            soft_capex_date=kwargs.get("soft_capex_date", None),
-            system_capex_date=kwargs.get("system_capex_date", None),
-            turbine_capex_date=kwargs.get("turbine_capex_date", None),
-            offtake_price=offtake_price,
-        ).values.flatten()
+        if cash_flow is None:
+            cash_flow = self.cash_flow(
+                installation_start_date=kwargs.get("installation_start_date", None),
+                project_capex_date=kwargs.get("project_capex_date", None),
+                soft_capex_date=kwargs.get("soft_capex_date", None),
+                system_capex_date=kwargs.get("system_capex_date", None),
+                turbine_capex_date=kwargs.get("turbine_capex_date", None),
+                offtake_price=offtake_price,
+            )
         if finance_rate is None or reinvestment_rate is None:
-            return npf.irr(cashflow)
-        return npf.mirr(cashflow, finance_rate, reinvestment_rate)
+            return npf.irr(cash_flow.cash_flow.values)
+        return npf.mirr(cash_flow.cash_flow.values, finance_rate, reinvestment_rate)
 
-    def lcoe(self, units: str = "mw") -> float:
-        """Calculates the levelized cost of energy (LCOE) as the (CapEx + OpEx) / energy
-        in the provided units base.
+    def lcoe(
+        self,
+        fixed_charge_rate: float | None = None,
+        capex: float | None = None,
+        opex: float | None = None,
+        aep: float | None = None,
+    ) -> float:
+        """Calculates the levelized cost of energy (LCOE) as the following:
+        LCOE = (CapEx * FCR + OpEx) / AEP, in $/MWh.
 
         Parameters
         ----------
-        units : str, optional
-            One of "kw", "mw", or "gw" for the energy basis. For instance "mw" provides LCOE as
-            $/MWh. Defaults to "mw".
+        fixed_charge_rate : float, optional
+            Revenue per amount of investment required to cover the investment cost. Required if no
+            value was provided in the ``Project`` configuration. Defaults to None
+        capex : float, optional
+            Custom CapEx value, in $/kW. Defaults to None.
+        opex : float, optional
+            Custom OpEx value, in $/kW/year. Defaults to None.
+        aep : float, optional
+            Custom AEP value, in MWh/MW/year. Defaults to None.
 
         Returns
         -------
@@ -1724,16 +2409,23 @@ class Project(FromDictMixin):
         ValueError
             Raised if the input to :py:attr:`units` is not one of "kw", "mw", or "gw".
         """
-        costs = self.capex() + self.opex()
-        if units == "kw":
-            energy = self.energy_production() * 1e6
-        elif units == "mw":
-            energy = self.energy_production() * 1e3
-        elif units == "gw":
-            energy = self.energy_production()
-        else:
-            raise ValueError("`units` must be one of 'gw', 'mw', or 'kw' for the base energy unit.")
-        return costs / energy
+        # Check that the offtake price exists
+        if fixed_charge_rate is None:
+            if (fixed_charge_rate := self.fixed_charge_rate) is None:
+                raise ValueError(
+                    "`fixed_charge_rate` wasn't defined in the Project settings or in the method"
+                    " keyword arguments."
+                )
+
+        # Check for custom inputs, otherwise compute the necessary metrics
+        # CapEx: $/kW; OpEx: $/kW; AEP: MWh/MW -> LCOE: ($/kW/yr + $/kW/yr) / (MWh/MW): $/MW
+        capex = self.capex(per_capacity="kw") if capex is None else capex
+        opex = self.opex(per_capacity="kw") if opex is None else opex
+        if aep is None:
+            aep = self.energy_production(units="mw", per_capacity="mw", aep=True, with_losses=True)
+        if TYPE_CHECKING:
+            assert isinstance(capex, float) and isinstance(opex, float) and isinstance(aep, float)
+        return (capex * self.fixed_charge_rate + opex / self.operations_years) / (aep / 1000)
 
     def generate_report(
         self,
@@ -1785,14 +2477,3 @@ class Project(FromDictMixin):
         results_df.index = pd.Index([simulation_name])
         results_df.index.name = "Project"
         return results_df
-
-
-# *****************************************************************************
-# TODO
-# ----
-# - ORBIT timestamped installation/procurement to feed into the IRR
-# - Considering adding a year/month for the procurement costs
-# - development costs are time 0
-# - procurement gets input to fill in the time series
-# - Easting/Norhting -> lat/lon code
-# *****************************************************************************

@@ -3,7 +3,7 @@ site:
   depth: 34.70
   distance: 82
   distance_to_landfall: 74.31
-  mean_windspeed: 9.820888
+  mean_windspeed: 8.99601096705724
 plant:
   layout: custom
   num_turbines: 79
@@ -34,9 +34,7 @@ array_system_design:
   - XLPE_185mm_66kV
   location_data: revolution_wind_layout_base
 export_system_design:
-  cables: XLPE_1000m_220kV
-  #uncomment the line below if the 275kV cable is available
-  #cables: XLPE_1900mm_275kV
+  cables: XLPE_1900mm_275kV
   percent_added_length: 0.0
 scour_protection_design:
   cost_per_tonne: 40
@@ -50,7 +48,7 @@ design_phases:
 - OffshoreSubstationDesign
 install_phases:
   ArrayCableInstallation: 0
-  ExportCableInstallation: 1998
+  ExportCableInstallation: 0
   MonopileInstallation: !!python/tuple
   - ScourProtectionInstallation
   - 0.5
@@ -59,16 +57,9 @@ install_phases:
   TurbineInstallation: !!python/tuple
   - MonopileInstallation
   - 0.1
-
-#install_phases:
-  #ArrayCableInstallation: 0
-  #ExportCableInstallation: 0
-  #MooredSubInstallation: 0
-  #MooringSystemInstallation: 0
-  #OffshoreSubstationInstallation: 0
-  #TurbineInstallation: 0
 # Project Inputs
 project_parameters:
   turbine_capex: 1500
   commissioning: 0.01
   decommissioning: 0.15
+  site_auction_price: 1903181

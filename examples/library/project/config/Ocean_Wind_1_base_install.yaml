@@ -2,17 +2,17 @@
 site:
   depth: 26.381765177291
   distance: 214
-  distance_to_landfall: 116
-  mean_windspeed: 9.16
+  distance_to_landfall: 36
+  mean_windspeed: 8.58649812078702
 plant:
   layout: custom
-  num_turbines: 92
+  num_turbines: 98
   row_spacing: 8.613953488
   substation_distance: 1
   turbine_spacing: 6.891162791
 
 landfall:
-  interconnection_distance: 11
+  interconnection_distance: 7
   trench_length: 2
 turbine: 12MW_generic
 oss_design:
@@ -32,9 +32,10 @@ array_system_design:
   cables:
   - XLPE_630mm_66kV
   - XLPE_185mm_66kV
+  - XLPE_500mm_132kV
   location_data: ocean_wind_1_layout_base
 export_system_design:
-  cables: XLPE_1000m_220kV
+  cables: XLPE_1900mm_275kV
   percent_added_length: 0.0
 scour_protection_design:
   cost_per_tonne: 40
@@ -70,3 +71,4 @@ project_parameters:
   turbine_capex: 1500
   commissioning: 0.01
   decommissioning: 0.15
+  site_auction_price: 1054690

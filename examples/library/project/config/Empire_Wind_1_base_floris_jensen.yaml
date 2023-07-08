@@ -1,0 +1,235 @@
+description: Empire Wind 1 using Jensen-Jimenez
+farm:
+  layout_x:
+  - 8545.167882
+  - 7324.428239
+  - 6103.68854
+  - 4882.948775
+  - 3662.219139
+  - 2441.47941
+  - 1220.739703
+  - 0.0
+  - 0.000197
+  - 12207.38716
+  - 19531.82551
+  - 18311.08564
+  - 18310.61509
+  - 6103.688796
+  - 4882.94908
+  - 3662.219407
+  - 2441.479567
+  - 1220.739918
+  - 10986.64756
+  - 10986.64751
+  - 9765.907611
+  - 12207.38703
+  - 17090.34587
+  - 12207.3875
+  - 10986.64782
+  - 9765.908094
+  - 8545.168302
+  - 7324.428621
+  - 12207.38734
+  - 20752.56533
+  - 21973.307
+  - 20752.56701
+  - 15869.60653
+  - 19531.82568
+  - 20752.56549
+  - 21973.30522
+  - 23194.04698
+  - 10986.64773
+  - 12207.38742
+  - 13428.12717
+  - 14648.86689
+  - 17090.34641
+  - 20752.56563
+  - 21973.30532
+  - 23194.04503
+  - 24414.78703
+  - 13428.12729
+  - 18311.08616
+  - 23194.04508
+  - 24414.7849
+  - 14648.86702
+  - 15869.6067
+  - 19531.82594
+  - 21973.3054
+  layout_y:
+  - 5369.67803
+  - 6044.04594
+  - 6718.41303
+  - 7392.78001
+  - 8067.14195
+  - 8741.50897
+  - 9415.87593
+  - 10090.24395
+  - 11647.677
+  - 5010.837
+  - 2032.03693
+  - 1065.35794
+  - 0.0
+  - 10210.44703
+  - 10497.89701
+  - 10785.33702
+  - 11072.78701
+  - 11360.23698
+  - 6552.41702
+  - 5298.28695
+  - 4695.31097
+  - 3346.57598
+  - 649.10695
+  - 8773.21702
+  - 9060.66701
+  - 9348.10701
+  - 9635.55698
+  - 9923.00696
+  - 6264.96698
+  - 2998.71699
+  - 2711.27696
+  - 1744.59703
+  - 5402.62696
+  - 4540.28698
+  - 4252.84695
+  - 3965.39697
+  - 3677.95702
+  - 7806.53693
+  - 7519.09702
+  - 7231.64699
+  - 6944.197
+  - 6369.30701
+  - 5506.967
+  - 5219.52699
+  - 4932.07594
+  - 4644.63694
+  - 8485.76698
+  - 7335.98595
+  - 6186.20598
+  - 5898.75596
+  - 8198.32695
+  - 7910.87697
+  - 7048.53602
+  - 6473.64598
+  turbine_library_path: /Users/rhammond/Documents/GitHub/WHaLE/examples/library/turbines
+  turbine_type:
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+  - iea_15MW_240m
+floris_version: v3.0.0
+flow_field:
+  air_density: 1.225
+  reference_wind_height: -1
+  turbulence_intensity: 0.06
+  wind_directions:
+  - 270.0
+  wind_shear: 0.12
+  wind_speeds:
+  - 9.112131
+  wind_veer: 0.0
+logging:
+  console:
+    enable: true
+    level: WARNING
+  file:
+    enable: false
+    level: WARNING
+name: Empire Wind 1 Jensen
+solver:
+  turbine_grid_points: 3
+  type: turbine_grid
+wake:
+  enable_secondary_steering: true
+  enable_transverse_velocities: true
+  enable_yaw_added_recovery: true
+  model_strings:
+    combination_model: sosfs
+    deflection_model: jimenez
+    turbulence_model: crespo_hernandez
+    velocity_model: jensen
+  wake_deflection_parameters:
+    gauss:
+      ad: 0.0
+      alpha: 0.58
+      bd: 0.0
+      beta: 0.077
+      dm: 1.0
+      ka: 0.38
+      kb: 0.004
+    jimenez:
+      ad: 0.0
+      bd: 0.0
+      kd: 0.05
+  wake_turbulence_parameters:
+    crespo_hernandez:
+      ai: 0.8
+      constant: 0.5
+      downstream: -0.32
+      initial: 0.1
+  wake_velocity_parameters:
+    cc:
+      a_f: 3.11
+      a_s: 0.179367259
+      alpha_mod: 1.0
+      b_f: -0.68
+      b_s: 0.0118889215
+      c_f: 2.41
+      c_s1: 0.0563691592
+      c_s2: 0.13290157
+    gauss:
+      alpha: 0.58
+      beta: 0.077
+      ka: 0.38
+      kb: 0.004
+    jensen:
+      we: 0.05

@@ -1,0 +1,27 @@
+Metrics,Empire Wind 1
+# Turbines,54.0
+Turbine Rating (MW),15.0
+Project Capacity (MW),810.0
+# OSS,1.0
+Total Export Cable Length (km),225.1047
+Total Array Cable Length (km),144.66032188428366
+FCR (%),0.0582
+Offtake Price ($/MWh),83.3
+CapEx ($),2566363303.000787
+CapEx per kW ($/kW),3168.349756791095
+System CapEx for Export Cables ($),191338994.99999997
+Installation CapEx for Export Cables ($),10387948.754913637
+CapEx Without Export Cables ($),2364636359.245873
+OpEx ($),1121036625.9071932
+OpEx per kW ($/kW),1383.995834453325
+Annual OpEx per kW ($/kW),65.90456354539643
+Energy Availability (%),0.9586570204182221
+Gross Capacity Factor (%),0.38120829870064515
+Net Capacity Factor Without Unmodeled Losses (%),0.36528343334377994
+Annual Losses (MWh),383786.820285085
+AEP (MWh),2323232.1237828527
+AEP per kW (MWh/kW),2.868187807139324
+Net Capacity Factor With All Losses (%),0.32716260347371867
+LCOE ($/MWh),87.26852501345967
+IRR (%),0.0018992492734652977
+NPV ($),-1278599849.4529688

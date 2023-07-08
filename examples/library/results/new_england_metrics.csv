@@ -1,0 +1,27 @@
+Metrics,New England
+# Turbines,128.0
+Turbine Rating (MW),16.0
+Project Capacity (MW),2048.0
+# OSS,2.0
+Total Export Cable Length (km),770.3577
+Total Array Cable Length (km),343.4463558915285
+FCR (%),0.0582
+Offtake Price ($/MWh),75.07
+CapEx ($),6761130068.598885
+CapEx per kW ($/kW),3301.333041308049
+System CapEx for Export Cables ($),654804045.0
+Installation CapEx for Export Cables ($),53192245.1740921
+CapEx Without Export Cables ($),6053133778.424792
+OpEx ($),1691011577.269057
+OpEx per kW ($/kW),825.6892467134068
+Annual OpEx per kW ($/kW),39.318535557781274
+Energy Availability (%),0.9419894310933205
+Gross Capacity Factor (%),0.5162526001131912
+Net Capacity Factor Without Unmodeled Losses (%),0.4863335766101377
+Annual Losses (MWh),1464088.748824877
+AEP (MWh),7804980.65496833
+AEP per kW (MWh/kW),3.811025710433755
+Net Capacity Factor With All Losses (%),0.43470831659882797
+LCOE ($/MWh),60.73328708547767
+IRR (%),0.004003276645526022
+NPV ($),-3166441736.375025

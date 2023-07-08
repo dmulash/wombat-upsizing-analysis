@@ -1,0 +1,20 @@
+Inputs,Ocean Wind 1
+FCR,0.0582
+Offtake price ($/MWh),116.8
+Lease Area Price ($),1054690
+Discount rate (%),0.025
+# Turbines,98
+Turbine Rating (MW),12
+Project Capacity (MW),1176
+# OSS,3
+Substructure type,??
+Row spacing (rotor diameters),not used for custom layouts
+Turbine spacing (rotor diameters),not used for custom layouts
+Depth (m),26.381765177291
+Mean wind speed (m/s),8.586498120787025
+Distance to landfall (km),36
+Distance to port (km),214
+Interconnection distance (km),7
+# of POIs,??
+Export cable type,['XLPE_1900mm_275kV']
+Array cable type,"['XLPE_185mm_66kV', 'XLPE_500mm_132kV', 'XLPE_630mm_66kV']"

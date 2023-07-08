@@ -1,0 +1,20 @@
+Inputs,Atlantic Shores South 1
+FCR,0.0582
+Offtake price ($/MWh),58.8
+Lease Area Price ($),1205011
+Discount rate (%),0.025
+# Turbines,136
+Turbine Rating (MW),15
+Project Capacity (MW),2040
+# OSS,2
+Substructure type,??
+Row spacing (rotor diameters),not used for custom layouts
+Turbine spacing (rotor diameters),not used for custom layouts
+Depth (m),24.36
+Mean wind speed (m/s),7.996682151675415
+Distance to landfall (km),31
+Distance to port (km),147
+Interconnection distance (km),19
+# of POIs,??
+Export cable type,['XLPE_1900mm_275kV']
+Array cable type,"['XLPE_185mm_66kV', 'XLPE_500mm_132kV', 'XLPE_630mm_66kV']"

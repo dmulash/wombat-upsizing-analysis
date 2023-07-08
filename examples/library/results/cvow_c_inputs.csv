@@ -1,0 +1,20 @@
+Inputs,CVOW C
+FCR,0.0582
+Offtake price ($/MWh),89.06
+Lease Area Price ($),1971276
+Discount rate (%),0.025
+# Turbines,176
+Turbine Rating (MW),15
+Project Capacity (MW),2640
+# OSS,3
+Substructure type,??
+Row spacing (rotor diameters),not used for custom layouts
+Turbine spacing (rotor diameters),not used for custom layouts
+Depth (m),28.64
+Mean wind speed (m/s),8.168117143172747
+Distance to landfall (km),58
+Distance to port (km),108
+Interconnection distance (km),8
+# of POIs,??
+Export cable type,['XLPE_1000m_220kV']
+Array cable type,"['XLPE_185mm_66kV', 'XLPE_630mm_66kV']"
