@@ -120,12 +120,16 @@ def load_weather(value: str | Path | pd.DataFrame) -> pd.DataFrame:
         timestamp_parsers=[
             "%m/%d/%y %H:%M",
             "%m/%d/%y %I:%M",
+            "%m/%d/%y %H:%M:%S",
+            "%m/%d/%y %I:%M:%S",
             "%m/%d/%Y %H:%M",
             "%m/%d/%Y %I:%M",
-            "%m-%d-%y %H:%M",
-            "%m-%d-%y %I:%M",
-            "%m-%d-%Y %H:%M",
-            "%m-%d-%Y %I:%M",
+            "%m/%d/%Y %H:%M:%S",
+            "%m/%d/%Y %I:%M:%S",
+            "%Y-%m-%d %H:%M",
+            "%Y-%m-%d %I:%M",
+            "%Y-%m-%d %H:%M:%S",
+            "%Y-%m-%d %I:%M:%S",
         ]
     )
     weather = (
@@ -477,12 +481,10 @@ class Project(FromDictMixin):
             wombat_config = self.wombat_config  # type: ignore
         self.wombat = Simulation.from_config(wombat_config)
         self.wombat_config_dict = attrs.asdict(self.wombat.config)
-        self.operations_start = self.wombat.env.weather.index.min()
-        self.operations_end = self.wombat.env.weather.index.max()
+        self.operations_start = self.wombat.env.start_datetime
+        self.operations_end = self.wombat.env.end_datetime
 
-        start = self.wombat.env.weather.index.min()
-        end = self.wombat.env.weather.index.max()
-        diff = end - start
+        diff = self.operations_end - self.operations_start
         self.operations_years = round((diff.days + (diff.seconds / 60 / 60) / 24) / 365.25, 1)
 
     def setup_floris(self) -> None:
@@ -744,8 +746,8 @@ class Project(FromDictMixin):
                 assert isinstance(self.weather, pd.DataFrame)  # mypy helper
             weather = self.weather.loc[:, [self.floris_wind_direction, self.floris_windspeed]]
         else:
-            start = self.wombat.env.weather.index.min()
-            stop = self.wombat.env.weather.index.max()
+            start = self.wombat.env.start_datetime
+            stop = self.wombat.env.end_datetime
 
             if TYPE_CHECKING:
                 assert isinstance(self.weather, pd.DataFrame)  # mypy helper
