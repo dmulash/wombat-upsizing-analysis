@@ -66,11 +66,11 @@ This is designed for working with in-progress updates to ORBIT and WOMBAT, and t
 
 2. Clone ORBIT and WOMBAT to a separate working directory outside of the WHaLE repository folder like in step 2 above
 
-   1. 
+   1. clone ORBIT
    
     `git clone https://github.com/WISDEM/ORBIT.git`
    
-   2. 
+   2. xlo
    
     `git clone https://github.com/WISDEM/WOMBAT.git`
    
