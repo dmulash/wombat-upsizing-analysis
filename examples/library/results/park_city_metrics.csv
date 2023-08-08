@@ -7,21 +7,21 @@ Total Export Cable Length (km),330.1533
 Total Array Cable Length (km),142.09218028532092
 FCR (%),0.0582
 Offtake Price ($/MWh),79.8
-CapEx ($),2782692391.903181
-CapEx per kW ($/kW),3478.3654898789764
+CapEx ($),3014475223.7529836
+CapEx per kW ($/kW),3768.0940296912295
 System CapEx for Export Cables ($),280630305.0
-Installation CapEx for Export Cables ($),31124165.854258876
-CapEx Without Export Cables ($),2470937921.048922
-OpEx ($),1123635119.3170774
-OpEx per kW ($/kW),1404.5438991463468
-Annual OpEx per kW ($/kW),66.8830428164927
-Energy Availability (%),0.946477474969175
-Gross Capacity Factor (%),0.5242122899544727
-Net Capacity Factor Without Unmodeled Losses (%),0.4960850646647845
-Annual Losses (MWh),564925.4334366061
-AEP (MWh),3111629.973412088
-AEP per kW (MWh/kW),3.8895374667651104
-Net Capacity Factor With All Losses (%),0.4436638356693351
-LCOE ($/MWh),69.24317264680911
-IRR (%),0.003598704049468493
-NPV ($),-1310484619.7826107
+Installation CapEx for Export Cables ($),166788401.475028
+CapEx Without Export Cables ($),2567056517.2779555
+OpEx ($),918583181.991329
+OpEx per kW ($/kW),1148.2289774891613
+Annual OpEx per kW ($/kW),54.677570356626724
+Energy Availability (%),0.9471188210904913
+Gross Capacity Factor (%),0.5242122899544726
+Net Capacity Factor Without Unmodeled Losses (%),0.49644589744616013
+Annual Losses (MWh),562394.7378791751
+AEP (MWh),3114160.6689695194
+AEP per kW (MWh/kW),3.8927008362118993
+Net Capacity Factor With All Losses (%),0.44402466845071037
+LCOE ($/MWh),70.38317466781619
+IRR (%),0.003352138601980803
+NPV ($),-1393962250.2887983

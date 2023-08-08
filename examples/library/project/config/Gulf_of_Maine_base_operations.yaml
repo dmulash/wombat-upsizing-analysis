@@ -1,0 +1,20 @@
+name: Gulf_of_Maine
+library: library
+#weather: UMaine.csv
+weather: era5_41.0N_124.5W_1979_2019.csv
+service_equipment:
+  - ctv1.yaml
+  - ctv2.yaml
+  - ctv3.yaml
+  - clv.yaml
+  - jackup.yaml
+  - dsv.yaml
+layout: Gulf_of_Maine_layout_base.csv
+inflation_rate: 0
+fixed_costs: Gulf_of_Maine_fixed_costs.yaml
+workday_start: 7
+workday_end: 19
+start_year: 1999
+end_year: 2019
+project_capacity: 600
+port_distance: 139
