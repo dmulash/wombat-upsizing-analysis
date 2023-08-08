@@ -65,45 +65,57 @@ This is designed for working with in-progress updates to ORBIT and WOMBAT, and t
     `pip uninstall orbit-nrel wombat floris`
 
 2. Clone ORBIT and WOMBAT to a separate working directory outside of the WHaLE repository folder like in step 2 above
-   1. `git clone https://github.com/WISDEM/ORBIT.git`
-   2. `git clone https://github.com/WISDEM/WOMBAT.git`
-   2. `git clone https://github.com/NREL/floris.git`
+
+   1. 
+   
+    `git clone https://github.com/WISDEM/ORBIT.git`
+   
+   2. 
+   
+    `git clone https://github.com/WISDEM/WOMBAT.git`
+   
+   3. 
+   
+    `git clone https://github.com/NREL/floris.git`
 
 3. Install the working version of ORBIT
-   1. Enter the directory
 
-      `cd ORBIT`
+   1. Enter the directory
+   
+    `cd ORBIT`
 
    2. Checkout the dev branch
-
-      `git checkout dev`
+   
+    `git checkout dev`
 
    3. Install a local version that is able to be updated as the working branch changes or edits are made and downloaded
-
-      `pip install -e .`
+   
+    `pip install -e .`
 
 4. Install the working version of WOMBAT
-   1. Enter the directory
 
-      `cd WOMBAT`
+   1. Enter the directory
+   
+    `cd WOMBAT`
 
    2. Checkout the develop branch
-
-      `git checkout develop`
+   
+    `git checkout develop`
 
    3. Install a local version that is able to be updated as the working branch changes or edits are made and downloaded
-
-      `pip install -e .`
+   
+    `pip install -e .`
       
 5. Install the working version of FLORIS
-   1. Enter the directory
 
-      `cd floris`
+   1. Enter the directory
+   
+    `cd floris`
 
    2. Checkout the main version of FLORIS
-
-      `git checkout main`
+   
+    `git checkout main`
 
    3. Install a local version that is able to be updated as the working branch changes or edits are made and downloaded
-
-      `pip install -e .`
+   
+    `pip install -e .`
