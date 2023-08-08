@@ -23,11 +23,16 @@ Using conda, create a new virtual environment:
 
 
    `conda create -n <environment_name> python=3.10 --no-default-packages`
+   
    `conda activate <environment_name>`
+   
    `conda install -c anaconda pip`
+   
 
    # to deactivate
+   
    `conda deactivate`
+   
 
 
 General
