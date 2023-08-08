@@ -70,14 +70,14 @@ This is designed for working with in-progress updates to ORBIT and WOMBAT, and t
    
     `git clone https://github.com/WISDEM/ORBIT.git`
    
-   2. xlo
+   2. clone WOMBAT
    
     `git clone https://github.com/WISDEM/WOMBAT.git`
    
-   3. 
+   3. clone FLORIS
    
     `git clone https://github.com/NREL/floris.git`
-
+   
 3. Install the working version of ORBIT
 
    1. Enter the directory
