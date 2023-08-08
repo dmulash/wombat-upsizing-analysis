@@ -129,4 +129,4 @@ This is designed for working with in-progress updates to ORBIT and WOMBAT, and t
    
     `pip install -e .`
     
-6. There is space in GH for weather profiles, make sure you copy and paste the appropiate weather profile in examples/library/weather
+6. There is not enough  space in GH for weather profiles, make sure you copy and paste the appropiate weather profile in examples/library/weather
