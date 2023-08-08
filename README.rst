@@ -21,20 +21,17 @@ for the appropriate OS version.
 
 Using conda, create a new virtual environment:
 
-.. code-block:: console
 
-   conda create -n <environment_name> python=3.10 --no-default-packages
-   conda activate <environment_name>
-   conda install -c anaconda pip
+   `conda create -n <environment_name> python=3.10 --no-default-packages`
+   `conda activate <environment_name>`
+   `conda install -c anaconda pip`
 
    # to deactivate
-   conda deactivate
+   `conda deactivate`
 
 
-# Installation Guide for In-Progress Code Updates
-
-
-## General
+General
+~~~~~~~
 
 This guide assumes that you have an environment that is already created and in use.
 
@@ -58,7 +55,8 @@ This guide assumes that you have an environment that is already created and in u
 
     `pip install -e .`
 
-## Custom installation for WOMBAT, ORBIT, and FLORIS updates
+Custom installation for WOMBAT, ORBIT, and FLORIS updates
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 This is designed for working with in-progress updates to ORBIT and WOMBAT, and that the above steps have been completed. Please note that these repository version should not be updated unless the instructions are updated, nor should they be used for other work as this is to maintain a consistent workflow between users on this one project.
 
@@ -89,7 +87,7 @@ This is designed for working with in-progress updates to ORBIT and WOMBAT, and t
 
       `cd WOMBAT`
 
-   2. Checkout the second-to-last update to the develop branch (turns out the fix was only a partial fix--sorry!)
+   2. Checkout the develop branch
 
       `git checkout develop`
 
@@ -102,7 +100,7 @@ This is designed for working with in-progress updates to ORBIT and WOMBAT, and t
 
       `cd floris`
 
-   2. Checkout the second-to-last update to the develop branch (turns out the fix was only a partial fix--sorry!)
+   2. Checkout the main version of FLORIS
 
       `git checkout main`
 
