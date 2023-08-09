@@ -97,9 +97,6 @@ This is designed for working with in-progress updates to ORBIT and WOMBAT, and t
    
     `pip install -e .`
     
-   4. Install last version of ORBIT
-   
-    `pip install orbit-nrel==1.0.8`
 
 4. Install the working version of WOMBAT
 
