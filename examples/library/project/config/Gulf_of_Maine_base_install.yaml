@@ -13,7 +13,7 @@ plant:
 landfall:
   interconnection_distance: 8 # COE Review 2021
   trench_length: 6  # COE Review 2021
-turbine: 12MW_generic
+turbine: 20MW_generic
 oss_design:
   num_substations: 1
 port:

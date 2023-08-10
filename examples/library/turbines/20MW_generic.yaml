@@ -1,0 +1,21 @@
+# Most Data comes from Sartori et al. (Prelim. design and opt. of 20MW RWT)
+blade:
+  deck_space: 645      # m^2 length * max chord * 0.75 (assume 25% overhang)
+  length: 126          # m
+  type: Blade
+  mass: 107.8          # tonnes
+hub_height: 168        # m
+nacelle:
+  deck_space: 200      # m^2 guess
+  type: Nacelle
+  mass: 573            # tonnes guess
+name: 20MW_generic
+rated_windspeed: 10.74 # m/s
+rotor_diameter: 258    # m
+tower:
+  deck_space: 65.5    # m^2 guess based on Mayank's 17MW low SP: pi * max diameter^2 /4
+  sections: 3          # guess
+  type: Tower
+  length: 56           # m hub height/3
+  mass: 444.4          # tonnes total (1333.3) tonnes/3
+turbine_rating: 20     # MW
