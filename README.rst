@@ -96,6 +96,7 @@ This is designed for working with in-progress updates to ORBIT and WOMBAT, and t
    3. Install a local version that is able to be updated as the working branch changes or edits are made and downloaded
    
     `pip install -e .`
+    
 
 4. Install the working version of WOMBAT
 
@@ -124,3 +125,5 @@ This is designed for working with in-progress updates to ORBIT and WOMBAT, and t
    3. Install a local version that is able to be updated as the working branch changes or edits are made and downloaded
    
     `pip install -e .`
+    
+6. There is not enough  space in GH for weather profiles, make sure you copy and paste the appropiate weather profile in examples/library/weather
