@@ -40,7 +40,7 @@ OffshoreSubstationInstallation:
 array_system_design:
   free_cable_length: 0.5
   cables:
-  - XLPE_630mm_66kV
+  - XLPE_500mm_132kV
   location_data: New_York_Bight_layout_base
 export_system_design:
   cables: XLPE_1000m_220kV
