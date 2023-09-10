@@ -1,4 +1,4 @@
-name: Gulf_of_Maine
+name: COE_2022_floating
 library: library
 #weather: UMaine.csv
 weather: era5_41.0N_124.5W_1979_2019.csv
@@ -9,12 +9,12 @@ service_equipment:
   - clv.yaml
   - jackup.yaml
   - dsv.yaml
-layout: Gulf_of_Maine_layout_base.csv
+layout: COE_2022_floating_layout_base.csv
 inflation_rate: 0
-fixed_costs: Gulf_of_Maine_fixed_costs.yaml
+fixed_costs: COE_2022_floating_fixed_costs.yaml
 workday_start: 7
 workday_end: 19
 start_year: 1999
 end_year: 2019
-project_capacity: 1000
+project_capacity: 600
 port_distance: 139

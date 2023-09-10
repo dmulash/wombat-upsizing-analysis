@@ -1,13 +1,13 @@
 discount_rate: 0.025
 fixed_charge_rate: 0.0569
-floris_config: Humboldt_base_floris_jensen.yaml
+floris_config: COE_2022_floating_base_floris_jensen.yaml
 floris_wind_direction: wind_direction_100m
 floris_windspeed: windspeed_100m
 floris_x_col: floris_x
 floris_y_col: floris_y
 loss_ratio: 0.1
 offtake_price: 83.30
-orbit_config: Humboldt_base_install.yaml
+orbit_config: COE_2022_floating_base_install.yaml
 orbit_start_date: 1/1/1998
 orbit_weather_cols:
 - windspeed_100m
@@ -129,4 +129,4 @@ turbine_capex_date:
   - 10
 #weather_profile: UMaine.csv
 weather_profile: era5_41.0N_124.5W_1979_2019.csv
-wombat_config: Humboldt_base_operations.yaml
+wombat_config: COE_2022_floating_base_operations.yaml

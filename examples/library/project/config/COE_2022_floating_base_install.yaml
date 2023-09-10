@@ -1,4 +1,4 @@
-# Humboldt
+# floating base case
 site:
   depth: 739 # COE Review 2021
   distance: 189 # COE Review 2021
@@ -13,7 +13,7 @@ plant:
 landfall:
   interconnection_distance: 8 # COE Review 2021
   trench_length: 6  # COE Review 2021
-turbine: 20MW_generic
+turbine: 12MW_generic
 oss_design:
   num_substations: 1
 port:
@@ -40,8 +40,8 @@ OffshoreSubstationInstallation:
 array_system_design:
   free_cable_length: 0.5
   cables:
-  - XLPE_500mm_132kV
-  location_data: Humboldt_layout_base
+  - XLPE_630mm_66kV
+  location_data: COE_2022_floating_layout_base
 export_system_design:
   cables: XLPE_1000m_220kV
   percent_added_length: 0.0

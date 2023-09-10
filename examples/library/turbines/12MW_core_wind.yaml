@@ -1,9 +1,9 @@
 capacity_kw: 12000
 capex_kw: 1500
 power_curve:
-  file: NREL_12MW_215_RWT.csv
+  file: 12MW_216_RWT.csv
   bin_width: 0.25
-electrical_system: # failure inputs from COREWIND (2021)
+electrical_system:
   name: electrical_system
   maintenance:
   - description: n/a
@@ -16,7 +16,7 @@ electrical_system: # failure inputs from COREWIND (2021)
       scale: 1.859
       shape: 1
       time: 14
-      materials: 5.333333333333333e-05
+      materials: 4.444444444444e-05
       service_equipment: CTV
       operation_reduction: 0.0
       level: 1
@@ -25,7 +25,7 @@ electrical_system: # failure inputs from COREWIND (2021)
       scale: 2.793
       shape: 1
       time: 10
-      materials: 5.333333333333333e-05
+      materials: 4.4444444444444e-05
       service_equipment: CTV
       operation_reduction: 0.0
       level: 2
@@ -34,7 +34,7 @@ electrical_system: # failure inputs from COREWIND (2021)
       scale: 2.959
       shape: 1
       time: 28
-      materials: 0.0003733333333333333
+      materials: 0.0003111111111111111111        
       service_equipment: CTV
       operation_reduction: 0.0
       level: 3
@@ -43,7 +43,7 @@ electrical_system: # failure inputs from COREWIND (2021)
       scale: 62.5
       shape: 1
       time: 28
-      materials: 0.0002666666666666667
+      materials: 0.0002222222222222222222         
       service_equipment: CTV
       operation_reduction: 0.0
       level: 4
@@ -52,9 +52,9 @@ electrical_system: # failure inputs from COREWIND (2021)
       scale: 12.99
       shape: 1
       time: 170
-      materials: 0.0029333333333333334
+      materials: 0.002444444444444444444444        
       service_equipment: LCN
-      operation_reduction: 0.02
+      operation_reduction: 0
       replacement: true
       level: 5
       description: power converter replacement
@@ -62,9 +62,9 @@ electrical_system: # failure inputs from COREWIND (2021)
       scale: 500
       shape: 1
       time: 54
-      materials: 0.0026666666666666666
+      materials: 0.00222222222222222222222   
       service_equipment: LCN
-      operation_reduction: 0.02
+      operation_reduction: 0
       replacement: true
       level: 6
       description: major replacement
@@ -81,7 +81,7 @@ hydraulic_system:
       scale: 1.214
       shape: 1
       time: 18
-      materials: 2.6666666666666667e-05
+      materials: 2.2222222222222222e-05
       service_equipment: CTV
       operation_reduction: 0
       level: 1
@@ -90,7 +90,7 @@ hydraulic_system:
       scale: 100
       shape: 1
       time: 8
-      materials: 5.333333333333333e-05
+      materials: 4.444444444444444444e-05
       service_equipment: CTV
       operation_reduction: 0
       level: 2
@@ -99,18 +99,18 @@ hydraulic_system:
       scale: 5.587
       shape: 1
       time: 38
-      materials: 0.00010133333333333333
+      materials: 0.000084444444444444444444         
       service_equipment: CTV
-      operation_reduction: 0.0
+      operation_reduction: 0
       level: 3
       description: major pitch system repair
     5:
       scale: 1000
       shape: 1
       time: 75
-      materials: 0.0007466666666666666
+      materials: 0.00062222222222222222222        
       service_equipment: LCN
-      operation_reduction: 0.02
+      operation_reduction: 0
       replacement: true
       level: 5
       description: major pitch system replacement
@@ -127,7 +127,7 @@ yaw_system:
       scale: 6.173
       shape: 1
       time: 10
-      materials: 2.6666666666666667e-05
+      materials: 2.22222222222222222e-05
       service_equipment: CTV
       operation_reduction: 0
       level: 1
@@ -136,7 +136,7 @@ yaw_system:
       scale: 166.7
       shape: 1
       time: 40
-      materials: 0.00016
+      materials: 0.000133333333333333333333  
       service_equipment: CTV
       operation_reduction: 0.0
       level: 3
@@ -145,9 +145,9 @@ yaw_system:
       scale: 1000
       shape: 1
       time: 147
-      materials: 0.0006666666666666666
+      materials: 0.0005555555555555555555      
       service_equipment: LCN
-      operation_reduction: 0.02
+      operation_reduction: 0
       replacement: true
       level: 5
       description: major replacement
@@ -164,7 +164,7 @@ rotor_blades:
       scale: 2.193
       shape: 1
       time: 18
-      materials: 0.0002666666666666667
+      materials: 0.00022222222222222        
       service_equipment: CTV
       operation_reduction: 0
       level: 2
@@ -173,7 +173,7 @@ rotor_blades:
       scale: 100
       shape: 1
       time: 42
-      materials: 0.0022992
+      materials: 0.00191555555555       
       service_equipment: CTV
       operation_reduction: 0.0
       level: 4
@@ -182,9 +182,9 @@ rotor_blades:
       scale: 1000
       shape: 1
       time: 864
-      materials: 0.023733333333333332
+      materials: 0.01977777777777777       
       service_equipment: LCN
-      operation_reduction: 0.02
+      operation_reduction: 0
       replacement: true
       level: 6
       description: major replacement
@@ -193,7 +193,7 @@ generator:
   maintenance:
   - description: annual turbine inspection
     time: 24
-    materials: 0.00011111111111111112
+    materials: 0.00006666666666666     
     service_equipment: CTV
     frequency: 365
   failures:
@@ -201,7 +201,7 @@ generator:
       scale: 1.832
       shape: 1
       time: 13
-      materials: 5.333333333333333e-05
+      materials: 4.444444444444444e-05
       service_equipment: CTV
       operation_reduction: 0.0
       level: 2
@@ -210,7 +210,7 @@ generator:
       scale: 33.33
       shape: 1
       time: 49
-      materials: 0.0007648
+      materials: 0.0006373333333333        
       service_equipment: CTV
       operation_reduction: 0.0
       level: 4
@@ -219,9 +219,9 @@ generator:
       scale: 111.1
       shape: 1
       time: 244
-      materials: 0.012613333333333334
+      materials: 0.01051111111111111      
       service_equipment: LCN
-      operation_reduction: 0.02
+      operation_reduction: 0
       replacement: true
       level: 6
       description: major replacement
@@ -230,12 +230,12 @@ supporting_structure:
   maintenance:
   - description: annual inspection
     time: 24
-    materials: 3.2e-05
+    materials: 2.6666666666666667e-05
     service_equipment: CTV
     frequency: 365
   - description: subsea inspection
     time: 6
-    materials: 2.6666666666666667e-05
+    materials: 2.22222222222222222e-05
     service_equipment: DSV
     frequency: 730
   failures:
@@ -243,7 +243,7 @@ supporting_structure:
       scale: 8.33
       shape: 1
       time: 40
-      materials: 8.0e-05
+      materials: 6.6666666666666666666e-05
       service_equipment: CTV
       operation_reduction: 0
       level: 1
@@ -261,7 +261,7 @@ drive_train:
       scale: 4.329
       shape: 1
       time: 10
-      materials: 5.333333333333333e-05
+      materials: 4.44444444444444444e-05
       service_equipment: CTV
       operation_reduction: 0
       level: 2
@@ -270,7 +270,7 @@ drive_train:
       scale: 38.46
       shape: 1
       time: 36
-      materials: 0.0007466666666666666
+      materials: 0.000622222222222222222
       service_equipment: CTV
       operation_reduction: 0
       level: 4
@@ -279,9 +279,9 @@ drive_train:
       scale: 111.1
       shape: 1
       time: 144
-      materials: 0.012373333333333333
+      materials: 0.0103111111111111111
       service_equipment: LCN
-      operation_reduction: 0.02
+      operation_reduction: 0
       replacement: true
       level: 6
-      description: main shaft replacement
+      description: main shaft replacement   

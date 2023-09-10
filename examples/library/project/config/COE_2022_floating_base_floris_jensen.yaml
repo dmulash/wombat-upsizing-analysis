@@ -1,4 +1,4 @@
-description: Gulf of Maine Layout using Jensen-Jimenez
+description: COE_2022_floating Layout using Jensen-Jimenez
 farm:
   layout_x:
   - 10606.05
@@ -104,58 +104,58 @@ farm:
   - 0
   - 0
 
-  turbine_library_path: /test_before_PTO/WHaLE/examples/library/turbines
+  turbine_library_path: /COWER/WHaLE/examples/library/turbines
   turbine_type:
-  - x_20MW
-  - x_20MW
-  - x_20MW
-  - x_20MW
-  - x_20MW
-  - x_20MW
-  - x_20MW
-  - x_20MW
-  - x_20MW
-  - x_20MW
-  - x_20MW
-  - x_20MW
-  - x_20MW
-  - x_20MW
-  - x_20MW
-  - x_20MW
-  - x_20MW
-  - x_20MW
-  - x_20MW
-  - x_20MW
-  - x_20MW
-  - x_20MW
-  - x_20MW
-  - x_20MW
-  - x_20MW
-  - x_20MW
-  - x_20MW
-  - x_20MW
-  - x_20MW
-  - x_20MW
-  - x_20MW
-  - x_20MW
-  - x_20MW
-  - x_20MW
-  - x_20MW
-  - x_20MW
-  - x_20MW
-  - x_20MW
-  - x_20MW
-  - x_20MW
-  - x_20MW
-  - x_20MW
-  - x_20MW
-  - x_20MW
-  - x_20MW
-  - x_20MW
-  - x_20MW
-  - x_20MW
-  - x_20MW
-  - x_20MW
+  - 12MW_216m
+  - 12MW_216m
+  - 12MW_216m
+  - 12MW_216m
+  - 12MW_216m
+  - 12MW_216m
+  - 12MW_216m
+  - 12MW_216m
+  - 12MW_216m
+  - 12MW_216m
+  - 12MW_216m
+  - 12MW_216m
+  - 12MW_216m
+  - 12MW_216m
+  - 12MW_216m
+  - 12MW_216m
+  - 12MW_216m
+  - 12MW_216m
+  - 12MW_216m
+  - 12MW_216m
+  - 12MW_216m
+  - 12MW_216m
+  - 12MW_216m
+  - 12MW_216m
+  - 12MW_216m
+  - 12MW_216m
+  - 12MW_216m
+  - 12MW_216m
+  - 12MW_216m
+  - 12MW_216m
+  - 12MW_216m
+  - 12MW_216m
+  - 12MW_216m
+  - 12MW_216m
+  - 12MW_216m
+  - 12MW_216m
+  - 12MW_216m
+  - 12MW_216m
+  - 12MW_216m
+  - 12MW_216m
+  - 12MW_216m
+  - 12MW_216m
+  - 12MW_216m
+  - 12MW_216m
+  - 12MW_216m
+  - 12MW_216m
+  - 12MW_216m
+  - 12MW_216m
+  - 12MW_216m
+  - 12MW_216m
   
 floris_version: v3.0.0
 flow_field:
@@ -175,7 +175,7 @@ logging:
   file:
     enable: false
     level: WARNING
-name: Gulf of Maine Layout Jensen
+name: COE_2022_floating Layout Jensen
 solver:
   turbine_grid_points: 3
   type: turbine_grid
