@@ -54,7 +54,7 @@ This guide assumes that you have an environment that is already created and in u
 
 4. Checkout the appropriate branch (most likely develop, unless working with a "release" version)
 
-    `git checkout analysis/flowin_umaine`
+    `git checkout analysis/COWER`
 
 5. Install WHaLE:
 
