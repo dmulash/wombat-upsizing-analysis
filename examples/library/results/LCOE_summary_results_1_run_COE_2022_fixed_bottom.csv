@@ -1,0 +1,20 @@
+Metrics,COE_2022_fixed_bottom
+# Turbines,50.0
+Turbine Rating (MW),12.0
+Project Capacity (MW),600.0
+# OSS,1.0
+Total Export Cable Length (km),118.068
+Total Array Cable Length (km),277.98308928256927
+FCR (%),0.0569
+CapEx ($),2164241481.89905
+CapEx per kW ($/kW),3607.0691364984173
+OpEx ($),1030702509.1317585
+OpEx per kW ($/kW),1717.8375152195974
+Annual OpEx per kW ($/kW),81.80178643902845
+Energy Availability (%),0.9363699898410778
+Gross Capacity Factor (%),0.48959767479920774
+Net Capacity Factor Without Unmodeled Losses (%),0.45833077475588685
+Net Capacity Factor With All Losses (%),0.40937100727596165
+AEP (MWh),2153338.283529566
+AEP per kW (MWh/kW),3.5888971392159434
+LCOE ($/MWh),79.98112210273545
