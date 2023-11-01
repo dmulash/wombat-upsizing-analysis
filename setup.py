@@ -34,7 +34,7 @@ DESCRIPTION = "Windfarm Heuristics and Lifecycle Estimator"
 # Installation reuqirements
 REQUIRED = [
     "orbit-nrel>=1.0.8",
-    "wombat>=0.6.2",
+    "wombat>=0.9",
     "floris>=3.3",
     "attrs",
     "matplotlib>=3.6",
