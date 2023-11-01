@@ -479,7 +479,7 @@ class Project(FromDictMixin):
             )
         else:
             wombat_config = self.wombat_config  # type: ignore
-        self.wombat = Simulation.from_config(wombat_config)
+        self.wombat = Simulation.from_config(self.library_path, wombat_config)
         self.wombat_config_dict = attrs.asdict(self.wombat.config)
         self.operations_start = self.wombat.env.start_datetime
         self.operations_end = self.wombat.env.end_datetime
