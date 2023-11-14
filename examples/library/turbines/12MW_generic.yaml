@@ -3,7 +3,7 @@ blade:
   length: 107          # m
   type: Blade
   mass: 54         # t
-hub_height: 132       # m
+hub_height: 136       # m
 nacelle:
   deck_space: 203     # m^2
   type: Nacelle

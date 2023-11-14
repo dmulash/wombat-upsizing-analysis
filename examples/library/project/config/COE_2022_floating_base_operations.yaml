@@ -1,6 +1,6 @@
 name: COE_2022_floating
 library: library
-#weather: UMaine.csv
+random_seed: 1
 weather: era5_41.0N_124.5W_1979_2019.csv
 service_equipment:
   - ctv1.yaml

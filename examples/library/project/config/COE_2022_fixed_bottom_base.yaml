@@ -2,7 +2,7 @@ discount_rate: 0.025
 fixed_charge_rate: 0.0569 # real FCR from national LCOE study
 floris_config: COE_2022_fixed_bottom_base_floris_jensen.yaml
 floris_wind_direction: wind_direction_100m
-floris_windspeed: windspeed_100m
+floris_windspeed: windspeed_132m
 floris_x_col: floris_x
 floris_y_col: floris_y
 loss_ratio: 0.1
@@ -128,5 +128,5 @@ turbine_capex_date:
   - 1999
   - 10
 #weather_profile: UMaine.csv
-weather_profile: era5_72.5W_40N_1958_2023.csv
+weather_profile: boem_era5_41.0_-70.5.csv
 wombat_config: COE_2022_fixed_bottom_base_operations.yaml

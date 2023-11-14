@@ -6,15 +6,15 @@ Project Capacity (MW),600.0
 Total Export Cable Length (km),118.068
 Total Array Cable Length (km),277.98308928256927
 FCR (%),0.0569
-CapEx ($),2164241481.89905
-CapEx per kW ($/kW),3607.0691364984173
-OpEx ($),1030702509.1317585
-OpEx per kW ($/kW),1717.8375152195974
-Annual OpEx per kW ($/kW),81.80178643902845
-Energy Availability (%),0.9363699898410778
-Gross Capacity Factor (%),0.48959767479920774
-Net Capacity Factor Without Unmodeled Losses (%),0.45833077475588685
-Net Capacity Factor With All Losses (%),0.40937100727596165
-AEP (MWh),2153338.283529566
-AEP per kW (MWh/kW),3.5888971392159434
-LCOE ($/MWh),79.98112210273545
+CapEx ($),2288903591.5453706
+CapEx per kW ($/kW),3814.839319242284
+OpEx ($),1166542736.8769615
+OpEx per kW ($/kW),1944.2378947949358
+Annual OpEx per kW ($/kW),92.58275689499695
+Energy Availability (%),0.9268364085944498
+Gross Capacity Factor (%),0.5319324882422899
+Net Capacity Factor Without Unmodeled Losses (%),0.5001572125178826
+Net Capacity Factor With All Losses (%),0.44696396369365515
+AEP (MWh),2351081.530624482
+AEP per kW (MWh/kW),3.91846921770747
+LCOE ($/MWh),79.02246947879415

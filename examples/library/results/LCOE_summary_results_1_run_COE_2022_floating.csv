@@ -8,13 +8,13 @@ Total Array Cable Length (km),333.0853604274155
 FCR (%),0.0569
 CapEx ($),2725126231.402032
 CapEx per kW ($/kW),4541.87705233672
-OpEx ($),1641042591.0693216
-OpEx per kW ($/kW),2735.070985115536
-Annual OpEx per kW ($/kW),130.2414754816922
-Energy Availability (%),0.9248196776213263
-Gross Capacity Factor (%),0.4629476761146004
-Net Capacity Factor Without Unmodeled Losses (%),0.42808680612627953
-Net Capacity Factor With All Losses (%),0.38179203851481613
-AEP (MWh),2008007.9557087931
-AEP per kW (MWh/kW),3.346679926181322
-LCOE ($/MWh),116.13727285929683
+OpEx ($),1513749519.8714025
+OpEx per kW ($/kW),2522.9158664523375
+Annual OpEx per kW ($/kW),120.13885078344464
+Energy Availability (%),0.9276804929293976
+Gross Capacity Factor (%),0.47951141259883007
+Net Capacity Factor Without Unmodeled Losses (%),0.4475866497095135
+Net Capacity Factor With All Losses (%),0.39963550844963225
+AEP (MWh),2101854.4112973954
+AEP per kW (MWh/kW),3.5030906854956587
+LCOE ($/MWh),108.06790033408433

@@ -1,7 +1,7 @@
 name: COE_2022_fixed_bottom
 library: library
 random_seed: 1
-weather: boem_era5_41.0_-70.5.csv
+weather: WTK_137m_lat41_03325_long-70_61667_2007to2013_time_series.csv
 service_equipment:
   - ctv1.yaml
   - ctv2.yaml

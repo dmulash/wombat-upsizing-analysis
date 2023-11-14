@@ -1,132 +1,132 @@
 discount_rate: 0.025
-fixed_charge_rate: 0.0569
-floris_config: COE_2022_floating_base_floris_jensen.yaml
-floris_wind_direction: wind_direction_100m
-floris_windspeed: windspeed_132m
+fixed_charge_rate: 0.0569 # real FCR from national LCOE study
+floris_config: COE_2022_fixed_bottom_base_floris_jensen.yaml
+floris_wind_direction: wind_direction
+floris_windspeed: windspeed_137m
 floris_x_col: floris_x
 floris_y_col: floris_y
 loss_ratio: 0.1
 offtake_price: 83.30
-orbit_config: COE_2022_floating_base_install.yaml
-orbit_start_date: 1/1/1998
+orbit_config: COE_2022_fixed_bottom_base_install.yaml
+orbit_start_date: 1/1/2007
 orbit_weather_cols:
 - windspeed_100m
 - windspeed_10m
 - waveheight
 project_capex_date:
 - !!python/tuple
-  - 1996
+  - 2007
   - 1
 - !!python/tuple
-  - 1996
+  - 2007
   - 7
 - !!python/tuple
-  - 1997
+  - 2007
   - 1
 - !!python/tuple
-  - 1997
+  - 2007
   - 7
 soft_capex_date: !!python/tuple
-- 1995
+- 2007
 - 1
 system_capex_date:
 - !!python/tuple
-  - 1996
+  - 2007
   - 1
 - !!python/tuple
-  - 1996
+  - 2007
   - 4
 - !!python/tuple
-  - 1996
+  - 2007
   - 7
 - !!python/tuple
-  - 1996
+  - 2007
   - 10
 - !!python/tuple
-  - 1997
+  - 2007
   - 1
 - !!python/tuple
-  - 1997
+  - 2007
   - 4
 - !!python/tuple
-  - 1997
+  - 2007
   - 7
 - !!python/tuple
-  - 1997
+  - 2007
   - 10
 - !!python/tuple
-  - 1998
+  - 2007
   - 1
 - !!python/tuple
   - 1998
   - 4
 - !!python/tuple
-  - 1998
+  - 2007
   - 7
 - !!python/tuple
-  - 1998
+  - 2007
   - 10
 - !!python/tuple
-  - 1999
+  - 2007
   - 1
 - !!python/tuple
-  - 1999
+  - 2007
   - 4
 - !!python/tuple
-  - 1999
+  - 2007
   - 7
 - !!python/tuple
-  - 1999
+  - 2007
   - 10
 turbine_capex_date:
 - !!python/tuple
-  - 1996
+  - 2007
   - 1
 - !!python/tuple
-  - 1996
+  - 2007
   - 4
 - !!python/tuple
-  - 1996
+  - 2007
   - 7
 - !!python/tuple
-  - 1996
+  - 2007
   - 10
 - !!python/tuple
-  - 1997
+  - 2007
   - 1
 - !!python/tuple
-  - 1997
+  - 2007
   - 4
 - !!python/tuple
-  - 1997
+  - 2007
   - 7
 - !!python/tuple
-  - 1997
+  - 2007
   - 10
 - !!python/tuple
-  - 1998
+  - 2007
   - 1
 - !!python/tuple
-  - 1998
+  - 2007
   - 4
 - !!python/tuple
-  - 1998
+  - 2007
   - 7
 - !!python/tuple
-  - 1998
+  - 2007
   - 10
 - !!python/tuple
-  - 1999
+  - 2007
   - 1
 - !!python/tuple
-  - 1999
+  - 2007
   - 4
 - !!python/tuple
-  - 1999
+  - 2007
   - 7
 - !!python/tuple
-  - 1999
+  - 2007
   - 10
 #weather_profile: UMaine.csv
-weather_profile: era5_41.0N_124.5W_1979_2019.csv
-wombat_config: COE_2022_floating_base_operations.yaml
+weather_profile: boem_era5_41.0_-70.5.csv
+wombat_config: COE_2022_fixed_bottom_ERA5_1959_2022_base_operations.yaml
