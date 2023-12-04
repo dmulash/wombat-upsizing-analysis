@@ -15,7 +15,7 @@ landfall:
   trench_length: 7   # COE Review 2021
 turbine: 12MW_generic 
 port:
-  monthly_rate: 2000000.0 # COE Review 2021
+  monthly_rate: 2261495.841    # 2000000.0 # COE Review 2021 multiplied by % increase from 2020 to 2022 from U.S Bureau Labor Statistics
   sub_assembly_lines: 1  # COE Review 2021
   turbine_assembly_cranes: 1  # COE Review 2021
 # Vessels

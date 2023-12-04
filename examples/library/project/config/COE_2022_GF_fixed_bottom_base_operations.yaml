@@ -1,7 +1,7 @@
 name: COE_GF_2022_fixed_bottom
 library: library
 random_seed: 1
-weather: era5_72.5W_40N_1958_2023.csv
+weather: boem_era5_41.0_-70.5.csv
 service_equipment:
   - ctv1.yaml
   - ctv2.yaml
@@ -11,7 +11,7 @@ service_equipment:
   - dsv.yaml
 layout: COE_2022_fixed_bottom_layout_base.csv
 inflation_rate: 0
-fixed_costs: COE_2022_fixed_bottom_fixed_costs.yaml
+fixed_costs: COE_2022_GF_fixed_bottom_fixed_costs.yaml
 workday_start: 7
 workday_end: 19
 start_year: 2000

@@ -1,7 +1,7 @@
 name: COE_GF_2022_floating
 library: library
 random_seed: 1
-weather: era5_41.0N_124.5W_1979_2019.csv
+weather: era5_41.0N_125.0W_1979_2019.csv
 service_equipment:
   - ctv1.yaml
   - ctv2.yaml
@@ -11,7 +11,7 @@ service_equipment:
   - dsv.yaml
 layout: COE_2022_floating_layout_base.csv
 inflation_rate: 0
-fixed_costs: COE_2022_floating_fixed_costs.yaml
+fixed_costs: COE_2022_GF_floating_fixed_costs.yaml
 workday_start: 7
 workday_end: 19
 start_year: 1999
