@@ -1,3 +1,3 @@
 labor: 4 # $80K/year * 30 workers / Capacity (kW)
 operations_management_administration: 2 #100k a month times 12 divided by project capacity (kW) % $/kW-yr
-operating_facilities: 0.56 #£450,000 per annum for a 1 GW wind farm. Includes costs associated with onshore logistics that involve support and resources to the wind farm operations, including quayside infrastructure, warehousing, logistics and operational planning -> equivalent to $560,000 per annum for 1 GW -> 0.56 $/kW
+insurance: 14.6  # private communications with George Hagerman (NREL), insurance costs for fixed-bottom

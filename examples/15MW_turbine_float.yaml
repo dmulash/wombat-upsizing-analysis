@@ -1,0 +1,344 @@
+capacity_kw: 15000 
+capex_kw: 1300  
+power_curve:
+  file: 2020ATB_NREL_Reference_15MW_240.csv
+  bin_width: 1
+electrical_system: # failure inputs from COREWIND (2021)
+  name: electrical_system
+  maintenance:
+  - description: n/a
+    time: 0
+    materials: 0
+    service_equipment: CTV
+    frequency: 0
+  failures:
+    1:
+      scale: 1.859
+      shape: 1
+      time: 14
+      materials: 1200
+      service_equipment: CTV
+      operation_reduction: 0.0
+      level: 1
+      description: power converter minor repair
+    2:
+      scale: 2.793
+      shape: 1
+      time: 10
+      materials: 1200
+      service_equipment: CTV
+      operation_reduction: 0.0
+      level: 2
+      description: minor repair
+    3:
+      scale: 2.959
+      shape: 1
+      time: 28
+      materials: 8400
+      service_equipment: CTV
+      operation_reduction: 0.0
+      level: 3
+      description: power converter major repair
+    4:
+      scale: 62.5
+      shape: 1
+      time: 28
+      materials: 6000
+      service_equipment: CTV
+      operation_reduction: 0.0
+      level: 4
+      description: major repair
+    5:
+      scale: 12.987
+      shape: 1
+      time: 170
+      materials: 66000
+      service_equipment: TOW
+      operation_reduction: 0.02
+      replacement: true
+      level: 5
+      description: power converter replacement
+    6:
+      scale: 500
+      shape: 1
+      time: 54
+      materials: 60000
+      service_equipment: TOW
+      operation_reduction: 0.02
+      replacement: true
+      level: 6
+      description: major replacement
+hydraulic_system:
+  name: hydraulic_system
+  maintenance:
+  - description: n/a
+    time: 0
+    materials: 0
+    service_equipment: CTV
+    frequency: 0
+  failures:
+    1:
+      scale: 1.214
+      shape: 1
+      time: 18
+      materials: 600
+      service_equipment: CTV
+      operation_reduction: 0
+      level: 1
+      description: minor pitch system repair
+    2:
+      scale: 100
+      shape: 1
+      time: 8
+      materials: 1200
+      service_equipment: CTV
+      operation_reduction: 0
+      level: 2
+      description: minor ballast pump repair
+    3:
+      scale: 5.587
+      shape: 1
+      time: 38
+      materials: 2280
+      service_equipment: CTV
+      operation_reduction: 0.0
+      level: 3
+      description: major pitch system repair
+    5:
+      scale: 1000
+      shape: 1
+      time: 75
+      materials: 16800
+      service_equipment: TOW
+      operation_reduction: 0.02
+      replacement: true
+      level: 5
+      description: major pitch system replacement
+yaw_system:
+  name: yaw_system
+  maintenance:
+  - description: n/a
+    time: 0
+    materials: 0
+    service_equipment: CTV
+    frequency: 0
+  failures:
+    1:
+      scale: 6.173
+      shape: 1
+      time: 10
+      materials: 600
+      service_equipment: CTV
+      operation_reduction: 0
+      level: 1
+      description: minor repair
+    3:
+      scale: 166.7
+      shape: 1
+      time: 40
+      materials: 3600
+      service_equipment: CTV
+      operation_reduction: 0.0
+      level: 3
+      description: major repair
+    5:
+      scale: 1000
+      shape: 1
+      time: 147
+      materials: 15000
+      service_equipment: TOW
+      operation_reduction: 0.02
+      replacement: true
+      level: 5
+      description: major replacement
+rotor_blades:
+  name: rotor_blades
+  maintenance:
+  - description: n/a
+    time: 0
+    materials: 0
+    service_equipment: CTV
+    frequency: 0
+  failures:
+    2:
+      scale: 2.193
+      shape: 1
+      time: 18
+      materials: 6000
+      service_equipment: CTV
+      operation_reduction: 0
+      level: 2
+      description: minor repair
+    4:
+      scale: 100
+      shape: 1
+      time: 42
+      materials: 51732
+      service_equipment: CTV
+      operation_reduction: 0.0
+      level: 4
+      description: major repair
+    6:
+      scale: 1000
+      shape: 1
+      time: 864
+      materials: 534000
+      service_equipment: TOW
+      operation_reduction: 0.02
+      replacement: true
+      level: 6
+      description: major replacement
+generator:
+  name: generator
+  maintenance: 
+  - description: annual turbine inspection
+    time: 24
+    materials: 2500
+    service_equipment: CTV
+    frequency: 365
+  failures:
+    2:
+      scale: 1.832
+      shape: 1
+      time: 13
+      materials: 1200
+      service_equipment: CTV
+      operation_reduction: 0.0
+      level: 2
+      description: minor repair
+    4:
+      scale: 33.33
+      shape: 1
+      time: 49
+      materials: 17208
+      service_equipment: CTV
+      operation_reduction: 0.0
+      level: 4
+      description: major repair
+    5:
+      scale: 1
+      shape: 1
+      time: 6
+      materials: 0
+      service_equipment: RMT
+      operation_reduction: 0
+      level: 5
+      description: remote reset
+    6:
+      scale: 111.1
+      shape: 1
+      time: 244
+      materials: 283800
+      service_equipment: TOW
+      operation_reduction: 0.02
+      replacement: true
+      level: 6
+      description: major replacement
+supporting_structure:
+  name: supporting_structure
+  maintenance:
+  - description: annual inspection
+    time: 24
+    materials: 720
+    service_equipment: CTV
+    frequency: 365
+  - description: subsea inspection
+    time: 6
+    materials: 600
+    service_equipment: CTV
+    frequency: 730
+  failures:
+    1:
+      scale: 8.33
+      shape: 1
+      time: 40
+      materials: 1800
+      service_equipment: CTV
+      operation_reduction: 0
+      level: 1
+      description: marine growth removal
+    2:
+      scale: 66.67
+      shape: 1
+      time: 240
+      materials: 90000
+      service_equipment: CTV
+      operation_reduction: 0
+      level: 2
+      description: major anchor repair
+    3:
+      scale: 66.67
+      shape: 1
+      time: 240
+      materials: 24000
+      service_equipment: CTV
+      operation_reduction: 0
+      level: 3
+      description: mooring line major repair
+    4:
+      scale: 80
+      shape: 1
+      time: 360
+      materials: 614400
+      service_equipment: TOW #AHV
+      operation_reduction: 0
+      replacement: true
+      level: 4
+      description: anchor replacement
+    5:
+      scale: 80
+      shape: 1
+      time: 360
+      materials: 162000
+      service_equipment: TOW #AHV
+      operation_reduction: 0
+      replacement: true
+      level: 5
+      description: mooring line replacement
+    6:
+      scale: 30.303
+      shape: 1
+      time: 40
+      materials: 120000
+      service_equipment: CTV
+      operation_reduction: 0
+      replacement: true
+      level: 6
+      description: buoyancy module replacement
+drive_train:
+  name: drive_train
+  maintenance:
+  - description: n/a
+    time: 0
+    materials: 0
+    service_equipment: CTV
+    frequency: 0
+  failures:
+    2:
+      scale: 4.329
+      shape: 1
+      time: 10
+      materials: 1200
+      service_equipment: CTV
+      operation_reduction: 0
+      level: 2
+      description: main shaft minor repair
+    4:
+      scale: 38.462
+      shape: 1
+      time: 36
+      materials: 16800
+      service_equipment: CTV
+      operation_reduction: 0
+      level: 4
+      description: main shaft major repair
+    6:
+      scale: 111.111
+      shape: 1
+      time: 144
+      materials: 278400
+      service_equipment: TOW
+      operation_reduction: 0.02
+      replacement: true
+      level: 6
+      description: main shaft replacement
