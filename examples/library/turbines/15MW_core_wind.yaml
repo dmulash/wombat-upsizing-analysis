@@ -13,7 +13,7 @@ electrical_system:
     frequency: 0
   failures:
     1:
-      scale: 1.859
+      scale: 1.8587
       shape: 1
       time: 14
       materials: 5.333333333333333e-05
@@ -22,7 +22,7 @@ electrical_system:
       level: 1
       description: power converter minor repair
     2:
-      scale: 2.793
+      scale: 2.7933
       shape: 1
       time: 10
       materials: 5.333333333333333e-05
@@ -31,7 +31,7 @@ electrical_system:
       level: 2
       description: minor repair
     3:
-      scale: 2.959
+      scale: 2.9586
       shape: 1
       time: 28
       materials: 0.0003733333333333333
@@ -40,7 +40,7 @@ electrical_system:
       level: 3
       description: power converter major repair
     4:
-      scale: 62.5
+      scale: 62.5000
       shape: 1
       time: 28
       materials: 0.0002666666666666667
@@ -49,7 +49,7 @@ electrical_system:
       level: 4
       description: major repair
     5:
-      scale: 12.99
+      scale: 12.9870
       shape: 1
       time: 170
       materials: 0.0029333333333333334
@@ -59,7 +59,7 @@ electrical_system:
       level: 5
       description: power converter replacement
     6:
-      scale: 500
+      scale: 500.0000
       shape: 1
       time: 54
       materials: 0.0026666666666666666
@@ -78,7 +78,7 @@ hydraulic_system:
     frequency: 0
   failures:
     1:
-      scale: 1.214
+      scale: 1.2136
       shape: 1
       time: 18
       materials: 2.6666666666666667e-05
@@ -87,7 +87,7 @@ hydraulic_system:
       level: 1
       description: minor pitch system repair
     2:
-      scale: 100
+      scale: 100.0000
       shape: 1
       time: 8
       materials: 5.333333333333333e-05
@@ -96,7 +96,7 @@ hydraulic_system:
       level: 2
       description: minor ballast pump repair
     3:
-      scale: 5.587
+      scale: 5.5866
       shape: 1
       time: 38
       materials: 0.00010133333333333333
@@ -105,7 +105,7 @@ hydraulic_system:
       level: 3
       description: major pitch system repair
     5:
-      scale: 1000
+      scale: 1000.0000
       shape: 1
       time: 75
       materials: 0.0007466666666666666
@@ -124,7 +124,7 @@ yaw_system:
     frequency: 0
   failures:
     1:
-      scale: 6.173
+      scale: 6.1728
       shape: 1
       time: 10
       materials: 2.6666666666666667e-05
@@ -133,7 +133,7 @@ yaw_system:
       level: 1
       description: minor repair
     3:
-      scale: 166.7
+      scale: 166.6667
       shape: 1
       time: 40
       materials: 0.00016
@@ -142,7 +142,7 @@ yaw_system:
       level: 3
       description: major repair
     5:
-      scale: 1000
+      scale: 1000.0000
       shape: 1
       time: 147
       materials: 0.0006666666666666666
@@ -161,7 +161,7 @@ rotor_blades:
     frequency: 0
   failures:
     2:
-      scale: 2.193
+      scale: 2.1930
       shape: 1
       time: 18
       materials: 0.0002666666666666667
@@ -170,7 +170,7 @@ rotor_blades:
       level: 2
       description: minor repair
     4:
-      scale: 100
+      scale: 100.0000
       shape: 1
       time: 42
       materials: 0.0022992
@@ -179,7 +179,7 @@ rotor_blades:
       level: 4
       description: major repair
     6:
-      scale: 1000
+      scale: 1000.0000
       shape: 1
       time: 864
       materials: 0.023733333333333332
@@ -198,7 +198,7 @@ generator:
     frequency: 365
   failures:
     2:
-      scale: 1.832
+      scale: 1.8315
       shape: 1
       time: 13
       materials: 5.333333333333333e-05
@@ -207,7 +207,7 @@ generator:
       level: 2
       description: minor repair
     4:
-      scale: 33.33
+      scale: 33.3333
       shape: 1
       time: 49
       materials: 0.0007648
@@ -216,7 +216,7 @@ generator:
       level: 4
       description: major repair
     6:
-      scale: 111.1
+      scale: 111.1111
       shape: 1
       time: 244
       materials: 0.012613333333333334
@@ -240,7 +240,7 @@ supporting_structure:
     frequency: 730
   failures:
     1:
-      scale: 8.33
+      scale: 8.33333
       shape: 1
       time: 40
       materials: 8.0e-05
@@ -258,7 +258,7 @@ drive_train:
     frequency: 0
   failures:
     2:
-      scale: 4.329
+      scale: 4.3290
       shape: 1
       time: 10
       materials: 5.333333333333333e-05
@@ -267,7 +267,7 @@ drive_train:
       level: 2
       description: main shaft minor repair
     4:
-      scale: 38.46
+      scale: 38.4615
       shape: 1
       time: 36
       materials: 0.0007466666666666666
@@ -276,7 +276,7 @@ drive_train:
       level: 4
       description: main shaft major repair
     6:
-      scale: 111.1
+      scale: 111.1111
       shape: 1
       time: 144
       materials: 0.012373333333333333
